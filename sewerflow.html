@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sewer Flow Calculator — Site Engineers Toolbox</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:#f5f2ee; --surface:#ffffff; --surface2:#faf9f7;
+  --border:#e4ddd5; --border2:#d4cdc4;
+  --text:#1a1714; --text2:#6b6259; --text3:#a59d94;
+  --accent:#c9622f; --accent-bg:#fdf1eb; --accent-border:#f0c5ae;
+  --green:#2e7d55; --green-bg:#edf7f2; --red:#c0392b; --red-bg:#fdf0ef;
+  --blue:#2563a8; --blue-bg:#eff5fd; --blue-border:#bdd3f0;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 16px rgba(0,0,0,0.07),0 1px 4px rgba(0,0,0,0.05);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.1),0 4px 12px rgba(0,0,0,0.06);
+  --radius:10px; --radius-sm:6px; --radius-lg:16px;
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+}
+
+body.dark-mode {
+  --bg:#111009; --surface:#1a1714; --surface2:#1f1c18;
+  --border:#2e2925; --border2:#3a3530;
+  --text:#e8e4df; --text2:#a59d94; --text3:#6b6259;
+  --accent:#e07840; --accent-bg:#2a1a10; --accent-border:#5a3020;
+  --green:#3a9966; --green-bg:#0d2018; --red:#e05040; --red-bg:#2a0d0a;
+  --blue:#4a8fd4; --blue-bg:#0d1a2a; --blue-border:#1e3a5a;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.3),0 1px 2px rgba(0,0,0,0.2);
+  --shadow:0 4px 16px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.5),0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Dark mode scrim */
+.dark-scrim {
+  position:fixed; inset:0; z-index:0;
+  background:rgba(6,5,3,0.0); backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
+  pointer-events:none;
+  transition: background 0.5s ease, backdrop-filter 0.5s ease, -webkit-backdrop-filter 0.5s ease;
+}
+body.dark-mode .dark-scrim {
+  background:rgba(6,5,3,0.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+}
+
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Instrument Sans',sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; transition:background 0.5s, color 0.5s; }
+
+/* Paper grain */
+body::before { content:''; position:fixed; inset:0; opacity:0.025; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:200px; pointer-events:none; z-index:0; }
+
+/* Grid */
+body::after { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(201,98,47,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(201,98,47,0.03) 1px, transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; opacity:0.6; }
+
+/* ── Animations ── */
+@keyframes slideDown  { from { opacity:0; transform:translateY(-22px); } to { opacity:1; transform:none; } }
+@keyframes slideUp    { from { opacity:0; transform:translateY(22px);  } to { opacity:1; transform:none; } }
+@keyframes slideLeft  { from { opacity:0; transform:translateX(22px);  } to { opacity:1; transform:none; } }
+@keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
+@keyframes scaleIn    { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+@keyframes shimmer    { 0% { background-position:-400px 0; } 100% { background-position:400px 0; } }
+@keyframes count-pop  { 0% { transform:scale(1); } 40% { transform:scale(1.18); } 100% { transform:scale(1); } }
+@keyframes status-in  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes water-rise { from { opacity:0; } to { opacity:1; } }
+@keyframes ripple-anim { to { transform:scale(4); opacity:0; } }
+
+.app { position:relative; z-index:1; min-height:100vh; max-width:1080px; margin:0 auto; padding:0 28px 80px; }
+
+/* ── Header ── */
+header { padding:40px 0 32px; display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border); margin-bottom:36px; animation:slideDown 0.6s var(--ease-out) both; }
+.header-left { display:flex; flex-direction:column; gap:4px; }
+.header-eyebrow { font-family:'Martian Mono',monospace; font-size:10px; font-weight:300; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); animation:fadeIn 0.8s ease both 0.3s; }
+h1 { font-family:'DM Serif Display',serif; font-size:46px; font-weight:400; letter-spacing:-0.02em; color:var(--text); line-height:1.05; animation:slideDown 0.7s var(--ease-out) both 0.1s; }
+h1 em { font-style:italic; color:var(--accent); }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:4px; }
+.badge { font-family:'Martian Mono',monospace; font-size:10px; font-weight:300; letter-spacing:0.12em; padding:4px 10px; border-radius:100px; background:var(--accent-bg); color:var(--accent); border:1px solid var(--accent-border); transition:transform 0.2s var(--ease-spring), box-shadow 0.2s; animation:slideLeft 0.5s var(--ease-out) both 0.4s; }
+.badge:hover { transform:translateY(-2px); box-shadow:var(--shadow); cursor:default; }
+.back-link { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.1em; text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s, gap 0.2s var(--ease-spring); animation:slideLeft 0.5s var(--ease-out) both 0.5s; }
+.back-link:hover { color:var(--accent); gap:8px; }
+.back-link svg { width:12px; height:12px; flex-shrink:0; }
+
+/* ── Main layout grid ── */
+.grid { display:grid; grid-template-columns:1fr 340px; gap:20px; }
+.col-left  { display:flex; flex-direction:column; gap:16px; }
+.col-right { display:flex; flex-direction:column; gap:16px; }
+.col-left  > * { animation:slideUp 0.55s var(--ease-out) both; }
+.col-left  > *:nth-child(1) { animation-delay:0s; }
+.col-left  > *:nth-child(2) { animation-delay:0.12s; }
+.col-right > * { animation:slideLeft 0.55s var(--ease-out) both; }
+.col-right > *:nth-child(1) { animation-delay:0.1s; }
+.col-right > *:nth-child(2) { animation-delay:0.22s; }
+
+/* ── Cards ── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; transition:box-shadow 0.25s, transform 0.25s; }
+.card:hover { box-shadow:var(--shadow); }
+.card-header { padding:14px 18px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface2); }
+.card-title { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text2); }
+.card-meta { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.05em; }
+
+/* ── Pipe visualisation ── */
+.viz-wrap { padding:24px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+#pipeSvg { width:100%; max-width:300px; height:300px; }
+
+/* SVG elements */
+.pipe-wall  { fill:none; stroke:var(--border2); stroke-width:10; }
+.pipe-inner { fill:var(--surface2); }
+.water-fill { transition:d 0.5s var(--ease-out), opacity 0.3s; }
+.dim-line   { stroke:var(--text3); stroke-width:1; stroke-dasharray:3 3; }
+.dim-arrow  { stroke:var(--text3); stroke-width:1.2; fill:none; marker-end:url(#arrowhead); marker-start:url(#arrowhead-start); }
+.dim-label  { font-family:'Martian Mono',monospace; font-size:10px; fill:var(--text3); }
+.water-line-label { font-family:'Martian Mono',monospace; font-size:9px; fill:var(--blue); }
+.invert-label { font-family:'Martian Mono',monospace; font-size:9px; fill:var(--text3); }
+.warning-overlay { fill:var(--red-bg); stroke:var(--red); stroke-width:1.5; rx:8; }
+
+/* Fullness indicator bar */
+.fullness-bar-wrap { width:100%; max-width:300px; }
+.fullness-bar-track { height:6px; background:var(--border); border-radius:10px; overflow:hidden; }
+.fullness-bar-fill { height:100%; border-radius:10px; transition:width 0.5s var(--ease-out), background 0.4s; }
+.fullness-label { display:flex; justify-content:space-between; margin-bottom:5px; }
+.fullness-label span { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.06em; }
+.fullness-label .fullness-val { color:var(--text); font-weight:400; }
+
+/* ── Formula card ── */
+.formula-body { padding:16px 18px; display:flex; flex-direction:column; gap:10px; }
+.formula-line { font-family:'Martian Mono',monospace; font-size:11.5px; color:var(--text2); line-height:1.6; }
+.formula-line .eq-var { color:var(--accent); }
+.formula-line .eq-op  { color:var(--text3); }
+.formula-line .eq-note { font-size:10px; color:var(--text3); margin-left:6px; }
+.formula-divider { height:1px; background:var(--border); margin:4px 0; }
+
+/* ── Inputs ── */
+.settings-body { padding:18px; display:flex; flex-direction:column; gap:14px; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field-label { font-size:11.5px; font-weight:600; color:var(--text2); letter-spacing:0.02em; display:flex; align-items:center; justify-content:space-between; }
+.field-hint { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); font-weight:400; }
+.field-unit { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); padding:0 10px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border); border-left:none; border-radius:0 var(--radius-sm) var(--radius-sm) 0; display:flex; align-items:center; white-space:nowrap; }
+.input-with-unit { display:flex; }
+.input-with-unit input { border-radius:var(--radius-sm) 0 0 var(--radius-sm) !important; flex:1; min-width:0; }
+
+input[type="number"], input[type="text"] {
+  width:100%; padding:8px 12px; background:var(--surface);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--text); font-family:'Martian Mono',monospace; font-size:12px;
+  outline:none; transition:border-color 0.18s, box-shadow 0.18s, background 0.18s;
+  -moz-appearance:textfield;
+}
+input[type="number"]::-webkit-inner-spin-button { display:none; }
+input[type="number"]:focus, input[type="text"]:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px rgba(201,98,47,0.1); background:#fffcfa;
+}
+body.dark-mode input:focus { background:var(--surface2); }
+input.input-error { border-color:var(--red) !important; box-shadow:0 0 0 3px rgba(192,57,43,0.1) !important; }
+
+/* n reference pill */
+.n-ref-row { display:flex; flex-wrap:wrap; gap:5px; margin-top:2px; }
+.n-ref-pill { font-family:'Martian Mono',monospace; font-size:9px; padding:2px 7px; border-radius:100px; background:var(--surface2); border:1px solid var(--border); color:var(--text3); cursor:pointer; transition:all 0.15s var(--ease-spring); white-space:nowrap; }
+.n-ref-pill:hover { background:var(--accent-bg); border-color:var(--accent-border); color:var(--accent); transform:translateY(-1px); }
+
+/* ── Stats / Results ── */
+.stats-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--border); }
+.stat { background:var(--surface2); padding:14px 12px; display:flex; flex-direction:column; gap:3px; transition:background 0.3s; }
+.stat-val { font-family:'DM Serif Display',serif; font-size:22px; color:var(--text); line-height:1; display:inline-block; transition:color 0.4s, transform 0.3s; }
+.stat-val.has-data { color:var(--accent); }
+.stat-val.pop { animation:count-pop 0.35s var(--ease-spring); }
+.stat-lbl { font-size:10px; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; }
+.stat-unit { font-family:'Martian Mono',monospace; font-size:9px; color:var(--text3); margin-top:1px; }
+.stat-full-row { background:var(--surface2); padding:12px 14px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+.stat-full-lbl { font-size:11.5px; color:var(--text2); }
+.stat-full-val { font-family:'Martian Mono',monospace; font-size:11px; color:var(--text3); }
+
+/* ── Status / errors ── */
+.status-wrap { min-height:26px; padding:0 18px 12px; }
+.status-msg { font-size:12px; font-weight:500; display:flex; align-items:center; gap:6px; }
+.status-msg.error { color:var(--red); animation:status-in 0.3s var(--ease-spring) both; }
+.status-msg.ok    { color:var(--green); animation:status-in 0.3s var(--ease-spring) both; }
+.status-msg.warn  { color:var(--accent); animation:status-in 0.3s var(--ease-spring) both; }
+
+/* ── Capacity comparison bar ── */
+.compare-body { padding:14px 18px; display:flex; flex-direction:column; gap:10px; }
+.compare-row { display:flex; flex-direction:column; gap:4px; }
+.compare-label { display:flex; justify-content:space-between; }
+.compare-label span { font-size:11.5px; color:var(--text2); }
+.compare-label code { font-family:'Martian Mono',monospace; font-size:10px; color:var(--accent); background:var(--accent-bg); padding:1px 6px; border-radius:3px; border:1px solid var(--accent-border); }
+.compare-track { height:5px; background:var(--border); border-radius:10px; overflow:hidden; }
+.compare-fill { height:100%; border-radius:10px; transition:width 0.5s var(--ease-out), background 0.4s; }
+
+@media (max-width:740px) { .grid { grid-template-columns:1fr; } h1 { font-size:36px; } }
+
+/* ── Easter egg: fatberg background flash ── */
+@keyframes fatberg-flash {
+  0%   { opacity:0; }
+  8%   { opacity:1; }
+  16%  { opacity:0; }
+  24%  { opacity:1; }
+  32%  { opacity:0; }
+  40%  { opacity:1; }
+  48%  { opacity:0; }
+  56%  { opacity:1; }
+  64%  { opacity:0; }
+  80%  { opacity:0.6; }
+  100% { opacity:0; }
+}
+.fatberg-overlay {
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:rgba(196,95,81,0.45);
+  opacity:0;
+  animation: fatberg-flash 2.8s ease forwards;
+}
+
+/* ── Easter egg: optimal depth badge ── */
+@keyframes badge-pop {
+  0%   { transform:scale(0) rotate(-8deg); opacity:0; }
+  60%  { transform:scale(1.1) rotate(2deg); opacity:1; }
+  100% { transform:scale(1) rotate(0deg); opacity:1; }
+}
+.optimal-badge {
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:'Martian Mono',monospace; font-size:9px; letter-spacing:0.1em;
+  text-transform:uppercase; padding:3px 10px; border-radius:100px;
+  background:var(--green-bg); color:var(--green); border:1px solid #b8ddc9;
+  animation:badge-pop 0.5s var(--ease-spring) both;
+  margin-top:4px; align-self:flex-start;
+}
+
+/* ── Easter egg: hint modal ── */
+.hint-overlay {
+  position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
+  background:rgba(26,23,20,0.7); backdrop-filter:blur(4px);
+  animation:fadeIn 0.25s ease both; cursor:pointer;
+}
+.hint-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:20px;
+  padding:32px 36px; max-width:460px; width:90%; cursor:default;
+  box-shadow:var(--shadow-lg); animation:scaleIn 0.4s var(--ease-spring) both;
+}
+.hint-title { font-family:'DM Serif Display',serif; font-size:26px; color:var(--text); margin-bottom:4px; }
+.hint-eyebrow { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:18px; }
+.hint-list { display:flex; flex-direction:column; gap:10px; }
+.hint-item { display:flex; gap:10px; align-items:flex-start; }
+.hint-key { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-border); padding:2px 7px; border-radius:4px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.hint-desc { font-size:12px; color:var(--text2); line-height:1.5; }
+.hint-footer { font-family:'Martian Mono',monospace; font-size:9px; color:var(--text3); margin-top:20px; letter-spacing:0.08em; }
+
+/* Badge clickable */
+.badge { cursor:pointer; }
+.badge:active { transform:scale(0.95) !important; }
+</style>
+</head>
+<body>
+<div class="dark-scrim"></div>
+<div class="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="header-left">
+      <div class="header-eyebrow">Manning's Formula · Circular Pipe</div>
+      <h1>Sewer <em>Flow</em></h1>
+    </div>
+    <div class="header-right">
+      <div class="badge" id="bsenBadge">BS EN 752 · Drainage</div>
+      <a href="index.html" class="back-link" id="backLink">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Toolbox
+      </a>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- ── LEFT COLUMN ── -->
+    <div class="col-left">
+
+      <!-- Cross-section visualisation -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Pipe Cross-Section</span>
+          <span class="card-meta" id="vizMeta">—</span>
+        </div>
+        <div class="viz-wrap">
+          <svg id="pipeSvg" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <!-- Arrowheads -->
+              <marker id="arr-end" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--text3)"/>
+              </marker>
+              <marker id="arr-start" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--text3)"/>
+              </marker>
+              <marker id="arr-blue-end" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--blue)"/>
+              </marker>
+              <marker id="arr-blue-start" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--blue)"/>
+              </marker>
+              <!-- Pipe hatch pattern -->
+              <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="6" stroke="var(--border2)" stroke-width="2"/>
+              </pattern>
+              <!-- Clip to circle interior -->
+              <clipPath id="pipeClip">
+                <circle cx="150" cy="150" r="108"/>
+              </clipPath>
+            </defs>
+
+            <!-- Pipe wall hatch (concrete look) -->
+            <circle cx="150" cy="150" r="118" fill="url(#hatch)" opacity="0.5"/>
+            <!-- Pipe wall outline -->
+            <circle cx="150" cy="150" r="118" fill="none" stroke="var(--border2)" stroke-width="1.5"/>
+            <!-- Pipe interior background -->
+            <circle cx="150" cy="150" r="108" class="pipe-inner" id="pipeInterior"/>
+
+            <!-- Water fill (clipped to pipe interior) -->
+            <g clip-path="url(#pipeClip)">
+              <path id="waterFill" d="" fill="var(--blue)" opacity="0.22" class="water-fill"/>
+              <!-- Water surface wave -->
+              <path id="waterSurface" d="" fill="none" stroke="var(--blue)" stroke-width="1.5" opacity="0.7"/>
+            </g>
+            <!-- Pipe interior ring on top -->
+            <circle cx="150" cy="150" r="108" fill="none" stroke="var(--border2)" stroke-width="2.5"/>
+
+            <!-- Invert level indicator (bottom of pipe) -->
+            <line id="invertLine" x1="135" y1="258" x2="165" y2="258" stroke="var(--text3)" stroke-width="1" stroke-dasharray="3,2"/>
+            <text id="invertText" x="168" y="261" class="invert-label" fill="var(--text3)">Invert</text>
+
+            <!-- Diameter dimension line -->
+            <line id="dimDiaLine" x1="42" y1="145" x2="258" y2="145" stroke="var(--text3)" stroke-width="1" marker-start="url(#arr-start)" marker-end="url(#arr-end)" stroke-dasharray="none" opacity="0.5"/>
+            <text id="dimDiaLabel" x="150" y="140" class="dim-label" text-anchor="middle" fill="var(--text3)">D = —</text>
+
+            <!-- Depth dimension (right side) -->
+            <line id="dimDepthLine" x1="270" y1="258" x2="270" y2="258" stroke="var(--blue)" stroke-width="1" marker-start="url(#arr-blue-start)" marker-end="url(#arr-blue-end)" opacity="0.7"/>
+            <text id="dimDepthLabel" x="278" y="258" class="water-line-label" text-anchor="start" fill="var(--blue)">d=—</text>
+
+            <!-- Centre cross -->
+            <line x1="147" y1="150" x2="153" y2="150" stroke="var(--text3)" stroke-width="1" opacity="0.3"/>
+            <line x1="150" y1="147" x2="150" y2="153" stroke="var(--text3)" stroke-width="1" opacity="0.3"/>
+
+            <!-- Warning text (shown when invalid) -->
+            <text id="warnText" x="150" y="158" text-anchor="middle" font-family="Martian Mono, monospace" font-size="11" fill="var(--red)" opacity="0" font-weight="300" letter-spacing="0.05em">—</text>
+          </svg>
+
+          <!-- Fullness indicator -->
+          <div class="fullness-bar-wrap">
+            <div class="fullness-label">
+              <span>Depth / Diameter</span>
+              <span class="fullness-val" id="fullnessPct">—</span>
+            </div>
+            <div class="fullness-bar-track">
+              <div class="fullness-bar-fill" id="fullnessBar" style="width:0%;background:var(--blue)"></div>
+            </div>
+          </div>
+          <div id="optimalBadgeWrap" style="width:100%;max-width:300px;min-height:22px;"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Manning's Equation</span>
+          <span class="card-meta">Circular partial flow</span>
+        </div>
+        <div class="formula-body">
+          <div class="formula-line">
+            <span class="eq-var">Q</span>
+            <span class="eq-op"> = </span>
+            <span class="eq-var">A</span>
+            <span class="eq-op"> · (1/</span><span class="eq-var">n</span><span class="eq-op">)</span>
+            <span class="eq-op"> · </span>
+            <span class="eq-var">R</span><span style="font-size:9px;vertical-align:super;color:var(--text3)">2/3</span>
+            <span class="eq-op"> · </span>
+            <span class="eq-var">S</span><span style="font-size:9px;vertical-align:super;color:var(--text3)">1/2</span>
+          </div>
+          <div class="formula-divider"></div>
+          <div class="formula-line"><span class="eq-var">θ</span><span class="eq-op"> = 2 · arccos(1 − 2</span><span class="eq-var">d</span><span class="eq-op">/</span><span class="eq-var">D</span><span class="eq-op">)</span><span class="eq-note">central angle (rad)</span></div>
+          <div class="formula-line"><span class="eq-var">A</span><span class="eq-op"> = (</span><span class="eq-var">D</span><span class="eq-op">²/8)(</span><span class="eq-var">θ</span><span class="eq-op"> − sin</span><span class="eq-var">θ</span><span class="eq-op">)</span><span class="eq-note">flow area (m²)</span></div>
+          <div class="formula-line"><span class="eq-var">P</span><span class="eq-op"> = </span><span class="eq-var">D</span><span class="eq-op"> · </span><span class="eq-var">θ</span><span class="eq-op">/2</span><span class="eq-note">wetted perimeter (m)</span></div>
+          <div class="formula-line"><span class="eq-var">R</span><span class="eq-op"> = </span><span class="eq-var">A</span><span class="eq-op"> / </span><span class="eq-var">P</span><span class="eq-note">hydraulic radius (m)</span></div>
+          <div class="formula-divider"></div>
+          <div class="formula-line"><span class="eq-var">d</span><span class="eq-op"> = Depth to Invert − Tape to Water</span><span class="eq-note">(m)</span></div>
+        </div>
+      </div>
+
+      <!-- Capacity comparison -->
+      <div class="card" id="compareCard">
+        <div class="card-header">
+          <span class="card-title">Capacity Comparison</span>
+          <span class="card-meta" id="compareMeta">vs full bore</span>
+        </div>
+        <div class="compare-body">
+          <div class="compare-row">
+            <div class="compare-label">
+              <span>Actual Flow Q</span>
+              <code id="compareQVal">— l/s</code>
+            </div>
+            <div class="compare-track"><div class="compare-fill" id="compareQBar" style="width:0%;background:var(--blue)"></div></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-label">
+              <span>Full Bore Q<sub>full</sub></span>
+              <code id="compareQFullVal">— l/s</code>
+            </div>
+            <div class="compare-track"><div class="compare-fill" style="width:100%;background:var(--border2)"></div></div>
+          </div>
+          <div class="compare-row" style="margin-top:4px;">
+            <div class="compare-label">
+              <span>Velocity V</span>
+              <code id="compareVVal">— m/s</code>
+            </div>
+            <div class="compare-track"><div class="compare-fill" id="compareVBar" style="width:0%;background:var(--green)"></div></div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-label">
+              <span>Full Bore V<sub>full</sub></span>
+              <code id="compareVFullVal">— m/s</code>
+            </div>
+            <div class="compare-track"><div class="compare-fill" style="width:100%;background:var(--border2)"></div></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div class="col-right">
+
+      <!-- Inputs -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Inputs</span>
+          <span class="card-meta">SI units</span>
+        </div>
+        <div class="settings-body">
+
+          <div class="field">
+            <div class="field-label">Pipe Diameter <span class="field-hint">internal</span></div>
+            <div class="input-with-unit">
+              <input type="number" id="inDiameter" value="300" min="1" step="1" oninput="calculate()">
+              <div class="field-unit">mm</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Manning's n <span class="field-hint">roughness</span></div>
+            <input type="number" id="inN" value="0.013" min="0.001" max="0.5" step="0.001" oninput="calculate()">
+            <div class="n-ref-row" id="nRefRow">
+              <span class="n-ref-pill" onclick="setN(0.010)" title="Smooth concrete / PVC">PVC 0.010</span>
+              <span class="n-ref-pill" onclick="setN(0.013)" title="Concrete / brick sewer">Concrete 0.013</span>
+              <span class="n-ref-pill" onclick="setN(0.015)" title="Brick / older clay">Brick 0.015</span>
+              <span class="n-ref-pill" onclick="setN(0.020)" title="Rough masonry">Masonry 0.020</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Bed Slope S <span class="field-hint">m/m</span></div>
+            <input type="number" id="inSlope" value="0.003" min="0.000001" step="0.0001" oninput="calculate()">
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+
+          <div class="field">
+            <div class="field-label">Depth to Invert <span class="field-hint">staff, top of MH → invert</span></div>
+            <div class="input-with-unit">
+              <input type="number" id="inInvert" value="1.500" min="0" step="0.001" oninput="calculate()">
+              <div class="field-unit">m</div>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">Tape to Water <span class="field-hint">tape, top of MH → water</span></div>
+            <div class="input-with-unit">
+              <input type="number" id="inWater" value="1.350" min="0" step="0.001" oninput="calculate()">
+              <div class="field-unit">m</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="status-wrap">
+          <div class="status-msg" id="statusMsg"></div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Results</span>
+          <span class="card-meta" id="resultsMeta">—</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-val" id="resQ">—</div>
+            <div class="stat-lbl">Flow Rate</div>
+            <div class="stat-unit">litres / sec</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="resV">—</div>
+            <div class="stat-lbl">Velocity</div>
+            <div class="stat-unit">m / s</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="resDepth">—</div>
+            <div class="stat-lbl">Flow Depth</div>
+            <div class="stat-unit">mm</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="resR">—</div>
+            <div class="stat-lbl">Hyd. Radius</div>
+            <div class="stat-unit">mm</div>
+          </div>
+        </div>
+        <div class="stat-full-row">
+          <span class="stat-full-lbl">Flow area A</span>
+          <span class="stat-full-val" id="resA">—</span>
+        </div>
+        <div class="stat-full-row" style="border-top:1px solid var(--border);">
+          <span class="stat-full-lbl">Wetted perimeter P</span>
+          <span class="stat-full-val" id="resP">—</span>
+        </div>
+        <div class="stat-full-row" style="border-top:1px solid var(--border);">
+          <span class="stat-full-lbl">Full bore Q</span>
+          <span class="stat-full-val" id="resQFull">—</span>
+        </div>
+      </div>
+
+    </div><!-- /col-right -->
+
+  </div><!-- /grid -->
+</div><!-- /app -->
+
+<script>
+// ── Dark mode: read URL param on load ──
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('darkmode') === 'true') document.body.classList.add('dark-mode');
+})();
+
+// ── Back link: preserve dark mode param ──
+(function() {
+  const link = document.getElementById('backLink');
+  function updateBackLink() {
+    const isDark = document.body.classList.contains('dark-mode');
+    link.href = isDark ? 'index.html?darkmode=true' : 'index.html';
+  }
+  updateBackLink();
+  new MutationObserver(updateBackLink).observe(document.body, { attributes:true, attributeFilter:['class'] });
+})();
+
+// ── Manning's n quick-set ──
+function setN(val) {
+  document.getElementById('inN').value = val.toFixed(3);
+  calculate();
+}
+
+// ── SVG constants ──
+const CX = 150, CY = 150, R = 108;
+
+// State shared with wave loop
+let waveState = { x0:0, x1:0, y:0, active:false };
+let fatbergActive = false;
+
+// ── Wave animation loop ──
+let waveT = 0;
+function waveLoop() {
+  requestAnimationFrame(waveLoop);
+  if (!waveState.active) return;
+  waveT += 0.04;
+  const path = document.getElementById('waterSurface');
+  const { x0, x1, y } = waveState;
+  const amp = 1.8, freq = 0.06;
+  let d = `M ${x0} ${y}`;
+  for (let x = x0; x <= x1; x += 2) {
+    const wy = y + Math.sin((x * freq) + waveT) * amp;
+    d += ` L ${x} ${wy}`;
+  }
+  path.setAttribute('d', d);
+}
+waveLoop();
+
+function calculate() {
+  if (fatbergActive) return;
+
+  const D_mm = parseFloat(document.getElementById('inDiameter').value);
+  const n    = parseFloat(document.getElementById('inN').value);
+  const S    = parseFloat(document.getElementById('inSlope').value);
+  const inv  = parseFloat(document.getElementById('inInvert').value);
+  const tape = parseFloat(document.getElementById('inWater').value);
+
+  if ([D_mm, n, S, inv, tape].some(isNaN)) return;
+
+  const D = D_mm / 1000;
+  const d = inv - tape;
+
+  clearStatus();
+  clearOptimalBadge();
+
+  if (n <= 0 || S <= 0 || D <= 0) {
+    setStatus('n, S, and diameter must all be positive.', 'error');
+    resetResults(); showWarn('Check inputs'); return;
+  }
+  if (d < 0) {
+    setStatus('Tape reading is less than depth to invert — tape is above the water surface.', 'error');
+    resetResults(); showWarn('Check readings'); return;
+  }
+
+  // ── Easter egg 4: slope = 1.0 ──
+  if (Math.abs(S - 1.0) < 0.001) {
+    setStatus("That's not a sewer. That's a waterfall.", 'warn');
+  }
+
+  // ── Easter egg 5: diameter ≥ 1200mm ──
+  if (D_mm >= 1200) {
+    setStatus("Trunk sewer. Hope you've got confined space training.", 'warn');
+  }
+
+  // ── Easter egg 2: n = 0.069 ──
+  if (Math.abs(n - 0.069) < 0.0001) {
+    showToast('😏', 'var(--surface2)', 'nice.', '', 2000);
+  }
+
+  if (d > D) {
+    setStatus('Water depth exceeds pipe diameter — pipe is surcharged.', 'warn');
+    computeAndDisplay(D, D, n, S, true);
+    return;
+  }
+  if (d === 0) {
+    setStatus('No flow — water level equals invert level.', 'ok');
+    resetResults(); updateVisualization(D, 0); return;
+  }
+
+  computeAndDisplay(D, d, n, S, false);
+}
+
+function computeAndDisplay(D, d, n, S, surcharged) {
+  let A, P, theta;
+  const dClamped = Math.min(d, D);
+
+  if (dClamped >= D * 0.9999) {
+    theta = 2 * Math.PI; A = Math.PI * D * D / 4; P = Math.PI * D;
+  } else {
+    theta = 2 * Math.acos(Math.max(-1, Math.min(1, 1 - 2 * dClamped / D)));
+    A = (D * D / 8) * (theta - Math.sin(theta));
+    P = D * theta / 2;
+  }
+
+  const R_hyd = A / P;
+  const V     = (1 / n) * Math.pow(R_hyd, 2/3) * Math.pow(S, 0.5);
+  const Q     = V * A;
+
+  const A_f = Math.PI * D * D / 4;
+  const R_f = D / 4;
+  const V_f = (1 / n) * Math.pow(R_f, 2/3) * Math.pow(S, 0.5);
+  const Q_f = V_f * A_f;
+
+  const pctDepth = (dClamped / D) * 100;
+  const pctQ     = Math.min((Q / Q_f) * 100, 100);
+  const pctV     = Math.min((V / V_f) * 100, 100);
+
+  // ── Easter egg 3: d/D ≈ 93.8% (theoretical Manning's max flow depth) ──
+  if (pctDepth >= 93.0 && pctDepth <= 95.0 && !surcharged) {
+    document.getElementById('optimalBadgeWrap').innerHTML =
+      '<div class="optimal-badge">⭐ Optimal depth — textbook maximum flow</div>';
+  }
+
+  // Velocity self-cleansing check
+  if (V < 0.75 && !surcharged && Math.abs(S - 1.0) >= 0.001) {
+    setStatus(`Velocity ${V.toFixed(2)} m/s — below 0.75 m/s self-cleansing threshold.`, 'warn');
+  }
+
+  animateStat('resQ',     (Q * 1000).toFixed(2));
+  animateStat('resV',     V.toFixed(3));
+  animateStat('resDepth', (dClamped * 1000).toFixed(0));
+  animateStat('resR',     (R_hyd * 1000).toFixed(1));
+
+  document.getElementById('resA').textContent     = (A * 1e4).toFixed(2) + ' cm²  (' + A.toFixed(5) + ' m²)';
+  document.getElementById('resP').textContent     = (P * 1000).toFixed(1) + ' mm';
+  document.getElementById('resQFull').textContent = (Q_f * 1000).toFixed(2) + ' l/s';
+  document.getElementById('resultsMeta').textContent = surcharged ? 'surcharged — full bore used' : `${pctDepth.toFixed(1)}% full`;
+
+  const bar = document.getElementById('fullnessBar');
+  bar.style.width = pctDepth.toFixed(1) + '%';
+  bar.style.background = pctDepth > 80 ? 'var(--red)' : pctDepth > 60 ? 'var(--accent)' : 'var(--blue)';
+  document.getElementById('fullnessPct').textContent = pctDepth.toFixed(1) + '%';
+
+  document.getElementById('compareQVal').textContent     = (Q * 1000).toFixed(2) + ' l/s';
+  document.getElementById('compareQFullVal').textContent = (Q_f * 1000).toFixed(2) + ' l/s';
+  document.getElementById('compareVVal').textContent     = V.toFixed(3) + ' m/s';
+  document.getElementById('compareVFullVal').textContent = V_f.toFixed(3) + ' m/s';
+  document.getElementById('compareQBar').style.width     = pctQ.toFixed(1) + '%';
+  document.getElementById('compareVBar').style.width     = pctV.toFixed(1) + '%';
+  document.getElementById('compareQBar').style.background = pctDepth > 80 ? 'var(--red)' : 'var(--blue)';
+
+  document.getElementById('vizMeta').textContent = `d/D = ${pctDepth.toFixed(1)}%  ·  Q = ${(Q*1000).toFixed(2)} l/s`;
+
+  updateVisualization(D, dClamped);
+  hideWarn();
+}
+
+function updateVisualization(D_m, d_m) {
+  const waterFill     = document.getElementById('waterFill');
+  const waterSurface  = document.getElementById('waterSurface');
+  const dimDiaLabel   = document.getElementById('dimDiaLabel');
+  const dimDepthLine  = document.getElementById('dimDepthLine');
+  const dimDepthLabel = document.getElementById('dimDepthLabel');
+
+  dimDiaLabel.textContent = `D = ${(D_m * 1000).toFixed(0)} mm`;
+
+  if (d_m <= 0) {
+    waterFill.setAttribute('d', '');
+    waterSurface.setAttribute('d', '');
+    waveState.active = false;
+    dimDepthLine.setAttribute('x1','270'); dimDepthLine.setAttribute('x2','270');
+    dimDepthLine.setAttribute('y1', CY+R); dimDepthLine.setAttribute('y2', CY+R);
+    dimDepthLabel.textContent = 'd = 0';
+    dimDepthLabel.setAttribute('y', CY+R);
+    return;
+  }
+
+  const ratio  = d_m / D_m;
+  const d_svg  = ratio * (2 * R);
+  const y_wat  = CY + R - d_svg;
+  const y_inv  = CY + R;
+  const x_half = Math.sqrt(Math.max(0, R*R - (R - d_svg)*(R - d_svg)));
+  const largeArc = d_svg > R ? 1 : 0;
+
+  let path;
+  if (ratio >= 0.9999) {
+    path = `M ${CX} ${CY-R} A ${R} ${R} 0 1 1 ${CX} ${CY+R} A ${R} ${R} 0 1 1 ${CX} ${CY-R} Z`;
+    waveState.active = false;
+    waterSurface.setAttribute('d', '');
+  } else {
+    path = `M ${CX - x_half} ${y_wat} L ${CX + x_half} ${y_wat} A ${R} ${R} 0 ${largeArc} 1 ${CX - x_half} ${y_wat} Z`;
+    // Update wave state for the rAF loop
+    waveState = { x0: CX - x_half, x1: CX + x_half, y: y_wat, active: true };
+  }
+
+  waterFill.setAttribute('d', path);
+
+  const dxRight = 258;
+  dimDepthLine.setAttribute('x1', dxRight); dimDepthLine.setAttribute('x2', dxRight);
+  dimDepthLine.setAttribute('y1', y_inv);   dimDepthLine.setAttribute('y2', y_wat);
+  const midY = (y_inv + y_wat) / 2;
+  dimDepthLabel.textContent = `d=${(d_m*1000).toFixed(0)}mm`;
+  dimDepthLabel.setAttribute('x', dxRight + 5);
+  dimDepthLabel.setAttribute('y', midY + 4);
+  dimDepthLine.setAttribute('stroke', 'var(--blue)');
+  dimDepthLine.setAttribute('marker-start', 'url(#arr-blue-start)');
+  dimDepthLine.setAttribute('marker-end', 'url(#arr-blue-end)');
+}
+
+// ── Easter egg 1: type "fatberg" ──
+let typeBuf = '';
+document.addEventListener('keydown', e => {
+  if (e.key.length !== 1) return;
+  typeBuf += e.key.toLowerCase();
+  if (typeBuf.length > 12) typeBuf = typeBuf.slice(-12);
+
+  if ((typeBuf.endsWith('fatberg') || typeBuf.endsWith('fatburg')) && !fatbergActive) {
+    typeBuf = '';
+    triggerFatberg();
+  }
+  // ── Easter egg 7: type "ofwat" ──
+  if (typeBuf.endsWith('ofwat')) {
+    typeBuf = '';
+    showToast('🏛️', 'var(--surface2)', 'Regulatory capture detected.', 'Nothing will happen.', 3000);
+  }
+});
+
+function triggerFatberg() {
+  fatbergActive = true;
+  waveState.active = false;
+
+  // Flash background
+  const overlay = document.createElement('div');
+  overlay.className = 'fatberg-overlay';
+  document.body.appendChild(overlay);
+
+  // Override results
+  setStatus('🧀 FATBERG DETECTED — pipe blocked', 'error');
+  showWarn('FATBERG');
+  document.getElementById('waterFill').setAttribute('fill', '#c45f51');
+  document.getElementById('waterFill').setAttribute('opacity', '0.35');
+  animateStat('resQ', '0.00'); animateStat('resV', '0.000');
+  document.getElementById('vizMeta').textContent = 'BLOCKAGE — Q = 0.00 l/s';
+  document.getElementById('fullnessBar').style.background = '#c45f51';
+
+  setTimeout(() => {
+    overlay.remove();
+    fatbergActive = false;
+    document.getElementById('waterFill').setAttribute('fill', 'var(--blue)');
+    document.getElementById('waterFill').setAttribute('opacity', '0.22');
+    calculate();
+  }, 3000);
+}
+
+// ── Easter egg 6: BS EN 752 badge — click 3x for hint modal ──
+let badgeClicks = 0;
+let badgeTimer;
+document.getElementById('bsenBadge').addEventListener('click', () => {
+  badgeClicks++;
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => { badgeClicks = 0; }, 1200);
+  if (badgeClicks >= 3) {
+    badgeClicks = 0;
+    showHintModal();
+  }
+});
+
+function showHintModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'hint-overlay';
+  overlay.innerHTML = `
+    <div class="hint-box" onclick="event.stopPropagation()">
+      <div class="hint-eyebrow">classified · site eyes only</div>
+      <div class="hint-title">Easter Eggs</div>
+      <div class="hint-list">
+        <div class="hint-item">
+          <span class="hint-key">type "fatberg"</span>
+          <span class="hint-desc">Trigger a blockage event. Background flashes red. (also works with "fatburg")</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">n = 0.069</span>
+          <span class="hint-desc">Set Manning's n to exactly 0.069.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">d/D = 93–95%</span>
+          <span class="hint-desc">Hit the theoretical maximum flow depth for a circular pipe under Manning's formula.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">S = 1.0</span>
+          <span class="hint-desc">Set the bed slope to 1 in 1.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">D ≥ 1200mm</span>
+          <span class="hint-desc">Enter a trunk sewer diameter.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">type "ofwat"</span>
+          <span class="hint-desc">Invoke the regulator.</span>
+        </div>
+      </div>
+      <div class="hint-footer">[ click anywhere to close ]</div>
+    </div>
+  `;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+// ── Helpers ──
+function showWarn(msg) {
+  const w = document.getElementById('warnText');
+  w.textContent = msg; w.setAttribute('opacity','1');
+}
+function hideWarn() { document.getElementById('warnText').setAttribute('opacity','0'); }
+
+function clearOptimalBadge() {
+  document.getElementById('optimalBadgeWrap').innerHTML = '';
+}
+
+function animateStat(id, val) {
+  const el = document.getElementById(id);
+  el.textContent = val; el.classList.add('has-data');
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+}
+
+function resetResults() {
+  ['resQ','resV','resDepth','resR'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '—'; el.classList.remove('has-data','pop');
+  });
+  ['resA','resP','resQFull'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('resultsMeta').textContent = '—';
+  document.getElementById('fullnessBar').style.width = '0%';
+  document.getElementById('fullnessPct').textContent = '—';
+  document.getElementById('compareQBar').style.width = '0%';
+  document.getElementById('compareVBar').style.width = '0%';
+  ['compareQVal','compareQFullVal','compareVVal','compareVFullVal'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('vizMeta').textContent = '—';
+  waveState.active = false;
+  document.getElementById('waterSurface').setAttribute('d','');
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg; el.className = 'status-msg ' + type;
+}
+function clearStatus() { setStatus('',''); }
+
+// ── Toast ──
+function showToast(icon, iconBg, title, sub, duration=2500) {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:12px;max-width:320px;font-family:'Instrument Sans',sans-serif;animation:slideUp 0.4s var(--ease-spring) both;`;
+  t.innerHTML = `
+    <div style="width:32px;height:32px;border-radius:50%;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${icon}</div>
+    <div><div style="font-size:13px;font-weight:600;color:var(--text);">${title}</div>${sub ? `<div style="font-family:'Martian Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;">${sub}</div>` : ''}</div>
+  `;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.transition='opacity 0.3s,transform 0.3s';
+    t.style.opacity='0'; t.style.transform='translateY(8px)';
+    setTimeout(()=>t.remove(),320);
+  }, duration);
+}
+
+// Initial calculation
+calculate();
+</script>
+</body>
+</html>
