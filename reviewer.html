@@ -814,7 +814,7 @@ document.addEventListener('keypress', e=>{
 function triggerEnforcementNotice(){
   if(document.getElementById('enfOverlay')) return;
   const ref = 'ENF-' + Math.floor(10000+Math.random()*90000);
-  const inspector = ['J. Hartley','P. Moss','S. Birchall','D. Cartwright','L. Fenn'][Math.floor(Math.random()*5)];
+  const inspector = ['R. Scammell','P. Moss','S. Birchall','D. Cartwright','L. Fenn'][Math.floor(Math.random()*5)];
   const d = new Date();
   const dateStr = d.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
   const violations = [
