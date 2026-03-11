@@ -115,7 +115,7 @@ h1 {
   letter-spacing:-0.02em; color:var(--text); line-height:1.05;
   animation: slideDown 0.7s var(--ease-out) both 0.1s;
 }
-h1 em { font-style:italic; color:var(--accent); }
+h1 em { font-style:italic; color:var(--accent); cursor:pointer; user-select:none; }
 .header-right { display:flex; align-items:center; gap:8px; padding-bottom:4px; flex-direction:column; align-items:flex-end; gap:10px; }
 
 .badge {
@@ -209,25 +209,19 @@ h1 em { font-style:italic; color:var(--accent); }
 .tool-card.live:hover .tool-icon-wrap { background:var(--accent-bg); border-color:var(--accent-border); color:var(--accent); }
 .tool-card.live:hover .tool-icon-wrap svg { transform:scale(1.1); }
 
-/* Coming soon card (Tool 02 only) */
+/* Coming soon cards */
 .tool-card.soon {
-  opacity:0.7;
+  opacity:0.45;
+  cursor:default;
+  pointer-events:none;
+  filter:grayscale(0.2);
 }
 .tool-card.soon:hover {
-  transform:translateY(-2px);
-  box-shadow:var(--shadow);
-  opacity:0.9;
+  transform:none;
+  box-shadow:var(--shadow-sm);
+  opacity:0.5;
 }
-.tool-card.soon:hover .tool-icon-wrap { background:var(--surface2); }
-
-/* Disabled/greyed cards (Tools 03–06) */
-.tool-card.disabled {
-  opacity:0.1;
-  filter:grayscale(1);
-  cursor:not-allowed;
-  pointer-events:none;
-}
-.tool-card.disabled::after { display:none; }
+.tool-card.soon::after { display:none; }
 
 /* Accent strip */
 .tool-card.live::before {
@@ -393,7 +387,7 @@ h1 em { font-style:italic; color:var(--accent); }
   <header>
     <div class="header-left">
       <div class="header-eyebrow" id="eyebrow" onclick="eyebrowClick()">Civil Engineering · Site Tools</div>
-      <h1>Site Engineers<br><em>Toolbox</em></h1>
+      <h1 id="siteTitle">Site Engineers<br><em id="toolboxWord" onclick="toolboxClick()">Toolbox</em></h1>
     </div>
     <div class="header-right">
       <div class="version-badge" id="versionBadge" onclick="versionClick()">v0.1.0 — placement build</div>
@@ -453,40 +447,57 @@ h1 em { font-style:italic; color:var(--accent); }
       <div class="tool-status live-chip"><span class="dot"></span>Live</div>
     </a>
 
-    <!-- 3: Placeholder -->
-    <div class="tool-card disabled">
+    <!-- 3: Laser Level Calculator — LIVE -->
+    <a href="laserlevel.html" class="tool-card live" onclick="addRipple(event)">
       <div class="tool-header">
         <div class="tool-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <circle cx="12" cy="12" r="3"/>
+            <line x1="12" y1="2" x2="12" y2="6"/>
+            <line x1="12" y1="18" x2="12" y2="22"/>
+            <line x1="4.22" y1="4.22" x2="7.05" y2="7.05"/>
+            <line x1="16.95" y1="16.95" x2="19.78" y2="19.78"/>
+          </svg>
+        </div>
+        <div class="tool-arrow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
           </svg>
         </div>
       </div>
       <div>
-        <div class="tool-title">Tool 03</div>
-        <div class="tool-desc" style="margin-top:6px">Placeholder — assign this tool a purpose when you're ready to build it out.</div>
+        <div class="tool-title">Laser Level</div>
+        <div class="tool-desc" style="margin-top:6px">Calculate reduced levels from TBM and instrument height — log staff readings, export a full levelling sheet.</div>
       </div>
-      <div class="tool-status soon-chip"><span class="dot"></span>Coming Soon</div>
-    </div>
+      <div class="tool-status live-chip"><span class="dot"></span>Live</div>
+    </a>
 
-    <!-- 4: Placeholder -->
-    <div class="tool-card disabled">
+    <!-- 4: RA / MS Reviewer — LIVE -->
+    <a href="reviewer.html" class="tool-card live" onclick="addRipple(event)">
       <div class="tool-header">
         <div class="tool-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <path d="M9 15l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="tool-arrow">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>
           </svg>
         </div>
       </div>
       <div>
-        <div class="tool-title">Tool 04</div>
-        <div class="tool-desc" style="margin-top:6px">Placeholder — assign this tool a purpose when you're ready to build it out.</div>
+        <div class="tool-title">RA / MS Reviewer</div>
+        <div class="tool-desc" style="margin-top:6px">AI-powered review of risk assessments and method statements against CDM 2015, HSE guidance, and your company policies.</div>
       </div>
-      <div class="tool-status soon-chip"><span class="dot"></span>Coming Soon</div>
-    </div>
+      <div class="tool-status live-chip"><span class="dot"></span>Live</div>
+    </a>
 
-    <!-- 5: Placeholder -->
-    <div class="tool-card disabled">
+    <!-- 5: Coming Soon -->
+    <div class="tool-card soon">
       <div class="tool-header">
         <div class="tool-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -498,14 +509,14 @@ h1 em { font-style:italic; color:var(--accent); }
         </div>
       </div>
       <div>
-        <div class="tool-title">Tool 05</div>
-        <div class="tool-desc" style="margin-top:6px">Placeholder — assign this tool a purpose when you're ready to build it out.</div>
+        <div class="tool-title">Coming Soon</div>
+        <div class="tool-desc" style="margin-top:6px">Next tool in development — check back soon.</div>
       </div>
-      <div class="tool-status soon-chip"><span class="dot"></span>Coming Soon</div>
+      <div class="tool-status soon-chip"><span class="dot"></span>In Development</div>
     </div>
 
-    <!-- 6: Placeholder -->
-    <div class="tool-card disabled">
+    <!-- 6: Coming Soon -->
+    <div class="tool-card soon">
       <div class="tool-header">
         <div class="tool-icon-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -516,17 +527,17 @@ h1 em { font-style:italic; color:var(--accent); }
         </div>
       </div>
       <div>
-        <div class="tool-title">Tool 06</div>
-        <div class="tool-desc" style="margin-top:6px">Placeholder — assign this tool a purpose when you're ready to build it out.</div>
+        <div class="tool-title">Coming Soon</div>
+        <div class="tool-desc" style="margin-top:6px">Another tool on the way — more to come during the placement.</div>
       </div>
-      <div class="tool-status soon-chip"><span class="dot"></span>Coming Soon</div>
+      <div class="tool-status soon-chip"><span class="dot"></span>In Development</div>
     </div>
 
   </div>
 
   <!-- ── Footer ── -->
   <div class="footer-divider">
-    <div class="footer-text">Site Engineers Toolbox · <span class="footer-accent">Dillon Rose </span></div>
+    <div class="footer-text">Site Engineers Toolbox · <span class="footer-accent" id="dillonRose" onclick="dillonClick()" style="cursor:pointer;">Dillon Rose</span></div>
     <div class="footer-text" id="footerTime"></div>
   </div>
 
@@ -595,42 +606,104 @@ document.addEventListener('click', () => {
   }
 });
 
-// ── Easter egg: Helmet (click 3x = safety briefing modal) ──
-let helmetClicks = 0;
-let helmetTimer;
-function helmetClick() {
-  helmetClicks++;
-  clearTimeout(helmetTimer);
-  document.getElementById('helmetWrap').style.animation = 'hard-hat-bounce 0.5s var(--ease-spring) both';
-  setTimeout(()=>{ document.getElementById('helmetWrap').style.animation=''; }, 600);
-
-  if (helmetClicks === 3) {
-    helmetClicks = 0;
-    //showSafetyBriefing();
-  } else {
-    helmetTimer = setTimeout(()=>{ helmetClicks=0; }, 1000);
+// ── Easter egg: Toolbox 3x click → egg list modal ──
+let toolboxClicks = 0, toolboxTimer;
+function toolboxClick() {
+  toolboxClicks++;
+  clearTimeout(toolboxTimer);
+  toolboxTimer = setTimeout(() => toolboxClicks = 0, 800);
+  if (toolboxClicks >= 3) {
+    toolboxClicks = 0;
+    showEggList();
   }
 }
 
-function showSafetyBriefing() {
+function showEggList() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
-    <div class="modal-box" onclick="event.stopPropagation()">
-      <div class="modal-eyebrow">⚠ mandatory site briefing</div>
-      <div class="modal-title">Morning Briefing</div>
-      <div class="modal-body">
-        <p>Good morning team. Before we start today, a few reminders:</p>
-        <p>🦺 PPE to be worn at all times on site. Yes, that includes Dave.</p>
-        <p>🚧 The compound gate code has not changed. It is still not "1234".</p>
-        <p>☕ The kettle in the site cabin takes 4 minutes. Plan accordingly.</p>
-        <p>📐 All setting out to be checked and back-checked. Measure twice, dig once.</p>
-        <p>🌧 Weather looking grim. Isn't it always.</p>
+    <div class="modal-box" onclick="event.stopPropagation()" style="max-width:500px;">
+      <div class="modal-eyebrow">🥚 hidden features · homepage only</div>
+      <div class="modal-title">Easter Eggs</div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">↑↑↓↓←→←→BA</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Konami Code</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">The classic. You know what to do.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">⌨️</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Type "concrete"</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Anywhere on the page. Go on.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">⌨️</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Type "engineer"</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">A little acknowledgement.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">🏷️</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Click the version badge 7×</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">Unlocks night shift mode.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">📡</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Click the eyebrow text</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">A hint lives here.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">😴</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Go idle for 45 seconds</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">The cards get restless without you.</div></div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span style="font-size:18px;flex-shrink:0;">🦺</span>
+          <div><div style="font-weight:600;font-size:13px;color:var(--text);">Click Dillon Rose 3×</div><div style="font-size:12px;color:var(--text3);margin-top:2px;">You probably shouldn't.</div></div>
+        </div>
       </div>
-      <div class="modal-footer">[ click anywhere to dismiss · have a safe one ]</div>
+      <div class="modal-footer">[ click anywhere to close · there are more eggs on other pages ]</div>
     </div>
   `;
-  overlay.addEventListener('click', ()=>overlay.remove());
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+// ── Easter egg: Dillon Rose 3x click ──
+let dillonClicks = 0, dillonTimer;
+function dillonClick() {
+  dillonClicks++;
+  clearTimeout(dillonTimer);
+  // Wobble the name
+  const el = document.getElementById('dillonRose');
+  el.style.animation = 'none';
+  void el.offsetWidth;
+  el.style.animation = 'wiggle 0.4s var(--ease-spring)';
+  setTimeout(() => el.style.animation = '', 450);
+
+  dillonTimer = setTimeout(() => dillonClicks = 0, 900);
+  if (dillonClicks >= 3) {
+    dillonClicks = 0;
+    showDillonEgg();
+  }
+}
+
+function showDillonEgg() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" onclick="event.stopPropagation()" style="text-align:center;max-width:420px;">
+      <div style="font-size:52px;margin-bottom:12px;animation:bounce-in 0.5s var(--ease-spring) both;">👷</div>
+      <div class="modal-eyebrow" style="justify-content:center;">⚠ employee file · strictly confidential</div>
+      <div class="modal-title" style="margin-bottom:16px;">Dillon Rose</div>
+      <div class="modal-body" style="font-family:'Martian Mono',monospace;font-size:10px;line-height:2;letter-spacing:0.06em;color:var(--text2);">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 16px;text-align:left;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:14px;">
+          <span style="color:var(--text3);">ROLE</span><span>Placement Site Engineer</span>
+          <span style="color:var(--text3);">INSTITUTION</span><span>University of Liverpool</span>
+          <span style="color:var(--text3);">YEAR</span><span>3</span>
+          <span style="color:var(--text3);">THREAT LEVEL</span><span style="color:var(--green);">Minimal ✓</span>
+          <span style="color:var(--text3);">SETTING OUT</span><span style="color:var(--accent);">"One seccond"</span>
+          <span style="color:var(--text3);">KNOWN SKILLS</span><span>AutoCAD, GPS, worrying</span>
+        </div>
+        <div style="color:var(--text3);font-size:9px;">This file is auto-generated and entirely fictitious.<br>Any resemblance to a real placement student is intentional.</div>
+      </div>
+      <div class="modal-footer" style="text-align:center;margin-top:16px;">[ click anywhere to seal this file ]</div>
+    </div>
+  `;
+  overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
 }
 
@@ -654,6 +727,7 @@ function versionClick() {
 function toggleDarkMode() {
   document.body.classList.toggle('dark-mode');
   const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkmode', isDark ? 'true' : 'false');
   const announce = document.createElement('div');
   announce.className='dark-announce';
   announce.textContent = isDark ? '' : '';
@@ -670,6 +744,25 @@ function toggleDarkMode() {
     a.href = url.href;
   });
 }
+
+// ── Init dark mode from localStorage or URL param ──
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  const isDark = p.get('darkmode') === 'true' || localStorage.getItem('darkmode') === 'true';
+  if (isDark) {
+    document.body.classList.add('dark-mode');
+    document.querySelectorAll('a.tool-card.live').forEach(a => {
+      const url = new URL(a.href, window.location.href);
+      url.searchParams.set('darkmode','true');
+      a.href = url.href;
+    });
+    // Update badge text after DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      const vb = document.getElementById('versionBadge');
+      if (vb) vb.textContent = 'v0.1.0 — night shift 🌑';
+    });
+  }
+})();
 
 // ── Easter egg: eyebrow click (types out morse code hint) ──
 let eyebrowClicks = 0;

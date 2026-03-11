@@ -81,6 +81,8 @@ h1 em { font-style:italic; color:var(--accent); }
 .back-link { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.1em; text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s, gap 0.2s var(--ease-spring); animation:slideLeft 0.5s var(--ease-out) both 0.5s; }
 .back-link:hover { color:var(--accent); gap:8px; }
 .back-link svg { width:12px; height:12px; flex-shrink:0; }
+.dark-toggle { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); background:none; border:1px solid var(--border); border-radius:100px; padding:4px 10px; cursor:pointer; letter-spacing:0.1em; transition:all 0.2s; }
+.dark-toggle:hover { color:var(--accent); border-color:var(--accent-border); background:var(--accent-bg); }
 
 /* ── Main layout grid ── */
 .grid { display:grid; grid-template-columns:1fr 340px; gap:20px; }
@@ -261,6 +263,7 @@ input.input-error { border-color:var(--red) !important; box-shadow:0 0 0 3px rgb
     </div>
     <div class="header-right">
       <div class="badge" id="bsenBadge">BS EN 752 · Drainage</div>
+      <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌑 night shift</button>
       <a href="index.html" class="back-link" id="backLink">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
         Back to Toolbox
@@ -527,27 +530,36 @@ input.input-error { border-color:var(--red) !important; box-shadow:0 0 0 3px rgb
 </div><!-- /app -->
 
 <script>
-// ── Dark mode: read URL param on load ──
+// ── Dark mode: read URL param or localStorage on load ──
 (function() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('darkmode') === 'true') document.body.classList.add('dark-mode');
+  if (params.get('darkmode') === 'true' || localStorage.getItem('darkmode') === 'true') {
+    document.body.classList.add('dark-mode');
+  }
 })();
+
+// ── Dark mode toggle ──
+function toggleDark() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkmode', isDark ? 'true' : 'false');
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
+  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
+}
 
 // ── Back link: preserve dark mode param ──
 (function() {
   const link = document.getElementById('backLink');
-  function updateBackLink() {
-    const isDark = document.body.classList.contains('dark-mode');
-    link.href = isDark ? 'index.html?darkmode=true' : 'index.html';
-  }
-  updateBackLink();
-  new MutationObserver(updateBackLink).observe(document.body, { attributes:true, attributeFilter:['class'] });
+  const isDark = document.body.classList.contains('dark-mode');
+  link.href = isDark ? 'index.html?darkmode=true' : 'index.html';
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
 })();
 
 // ── Manning's n quick-set ──
 function setN(val) {
   document.getElementById('inN').value = val.toFixed(3);
   calculate();
+  saveState();
 }
 
 // ── SVG constants ──
@@ -692,6 +704,7 @@ function computeAndDisplay(D, d, n, S, surcharged) {
 
   updateVisualization(D, dClamped);
   hideWarn();
+  saveState();
 }
 
 function updateVisualization(D_m, d_m) {
@@ -901,7 +914,36 @@ function showToast(icon, iconBg, title, sub, duration=2500) {
   }, duration);
 }
 
+// ── Persistence ──
+const STORE_KEY = 'sewerflow_v1';
+
+function saveState() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      diameter: document.getElementById('inDiameter').value,
+      n:        document.getElementById('inN').value,
+      slope:    document.getElementById('inSlope').value,
+      invert:   document.getElementById('inInvert').value,
+      water:    document.getElementById('inWater').value,
+    }));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.diameter) document.getElementById('inDiameter').value = s.diameter;
+    if (s.n)        document.getElementById('inN').value        = s.n;
+    if (s.slope)    document.getElementById('inSlope').value    = s.slope;
+    if (s.invert)   document.getElementById('inInvert').value   = s.invert;
+    if (s.water)    document.getElementById('inWater').value    = s.water;
+  } catch(e) {}
+}
+
 // Initial calculation
+loadState();
 calculate();
 </script>
 </body>

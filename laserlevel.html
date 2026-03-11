@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laser Level Setup — Site Engineers Toolbox</title>
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+
+:root {
+  --bg:#f5f2ee; --surface:#ffffff; --surface2:#faf9f7;
+  --border:#e4ddd5; --border2:#d4cdc4;
+  --text:#1a1714; --text2:#6b6259; --text3:#a59d94;
+  --accent:#c9622f; --accent-bg:#fdf1eb; --accent-border:#f0c5ae;
+  --green:#2e7d55; --green-bg:#edf7f2; --green-border:#b8ddc9;
+  --red:#c0392b; --red-bg:#fdf0ef; --red-border:#f5c6c2;
+  --blue:#2563a8; --blue-bg:#eff5fd; --blue-border:#bdd3f0;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+  --shadow:0 4px 16px rgba(0,0,0,0.07),0 1px 4px rgba(0,0,0,0.05);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.1),0 4px 12px rgba(0,0,0,0.06);
+  --radius:10px; --radius-sm:6px; --radius-lg:16px;
+  --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+  --ease-out:cubic-bezier(0.16,1,0.3,1);
+}
+
+body.dark-mode {
+  --bg:#111009; --surface:#1a1714; --surface2:#1f1c18;
+  --border:#2e2925; --border2:#3a3530;
+  --text:#e8e4df; --text2:#a59d94; --text3:#6b6259;
+  --accent:#e07840; --accent-bg:#2a1a10; --accent-border:#5a3020;
+  --green:#3a9966; --green-bg:#0d2018; --green-border:#1a4a2e;
+  --red:#e05040; --red-bg:#2a0d0a; --red-border:#5a2020;
+  --blue:#4a8fd4; --blue-bg:#0d1a2a; --blue-border:#1e3a5a;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.3),0 1px 2px rgba(0,0,0,0.2);
+  --shadow:0 4px 16px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3);
+  --shadow-lg:0 12px 40px rgba(0,0,0,0.5),0 4px 12px rgba(0,0,0,0.4);
+}
+
+.dark-scrim {
+  position:fixed; inset:0; z-index:0;
+  background:rgba(6,5,3,0.0); backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
+  pointer-events:none; transition:background 0.5s ease, backdrop-filter 0.5s ease;
+}
+body.dark-mode .dark-scrim {
+  background:rgba(6,5,3,0.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+}
+
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Instrument Sans',sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; transition:background 0.5s, color 0.5s; }
+
+body::before { content:''; position:fixed; inset:0; opacity:0.025; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:200px; pointer-events:none; z-index:0; }
+body::after { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(201,98,47,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(201,98,47,0.03) 1px, transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; opacity:0.6; }
+
+@keyframes slideDown  { from { opacity:0; transform:translateY(-22px); } to { opacity:1; transform:none; } }
+@keyframes slideUp    { from { opacity:0; transform:translateY(22px);  } to { opacity:1; transform:none; } }
+@keyframes slideLeft  { from { opacity:0; transform:translateX(22px);  } to { opacity:1; transform:none; } }
+@keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
+@keyframes scaleIn    { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+@keyframes count-pop  { 0% { transform:scale(1); } 40% { transform:scale(1.2); } 100% { transform:scale(1); } }
+@keyframes status-in  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes row-in     { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@keyframes laser-scan { 0%,100% { opacity:0.7; } 50% { opacity:1; } }
+
+.app { position:relative; z-index:1; min-height:100vh; max-width:1080px; margin:0 auto; padding:0 28px 80px; }
+
+/* ── Header ── */
+header { padding:40px 0 32px; display:flex; align-items:flex-end; justify-content:space-between; border-bottom:1px solid var(--border); margin-bottom:36px; animation:slideDown 0.6s var(--ease-out) both; }
+.header-left { display:flex; flex-direction:column; gap:4px; }
+.header-eyebrow { font-family:'Martian Mono',monospace; font-size:10px; font-weight:300; letter-spacing:0.18em; text-transform:uppercase; color:var(--accent); animation:fadeIn 0.8s ease both 0.3s; }
+h1 { font-family:'DM Serif Display',serif; font-size:46px; font-weight:400; letter-spacing:-0.02em; color:var(--text); line-height:1.05; animation:slideDown 0.7s var(--ease-out) both 0.1s; }
+h1 em { font-style:italic; color:var(--accent); }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:4px; }
+.badge { font-family:'Martian Mono',monospace; font-size:10px; font-weight:300; letter-spacing:0.12em; padding:4px 10px; border-radius:100px; background:var(--accent-bg); color:var(--accent); border:1px solid var(--accent-border); transition:transform 0.2s var(--ease-spring), box-shadow 0.2s; animation:slideLeft 0.5s var(--ease-out) both 0.4s; }
+.badge:hover { transform:translateY(-2px); box-shadow:var(--shadow); cursor:default; }
+.back-link { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.1em; text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s, gap 0.2s var(--ease-spring); animation:slideLeft 0.5s var(--ease-out) both 0.5s; }
+.back-link:hover { color:var(--accent); gap:8px; }
+.back-link svg { width:12px; height:12px; flex-shrink:0; }
+.dark-toggle { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); background:none; border:1px solid var(--border); border-radius:100px; padding:4px 10px; cursor:pointer; letter-spacing:0.1em; transition:all 0.2s; }
+.dark-toggle:hover { color:var(--accent); border-color:var(--accent-border); background:var(--accent-bg); }
+
+/* ── Layout ── */
+.grid { display:grid; grid-template-columns:1fr 340px; gap:20px; }
+.col-left  { display:flex; flex-direction:column; gap:16px; }
+.col-right { display:flex; flex-direction:column; gap:16px; }
+.col-left  > *:nth-child(1) { animation:slideUp 0.55s var(--ease-out) both 0s; }
+.col-left  > *:nth-child(2) { animation:slideUp 0.55s var(--ease-out) both 0.12s; }
+.col-left  > *:nth-child(3) { animation:slideUp 0.55s var(--ease-out) both 0.22s; }
+.col-right > *:nth-child(1) { animation:slideLeft 0.55s var(--ease-out) both 0.1s; }
+.col-right > *:nth-child(2) { animation:slideLeft 0.55s var(--ease-out) both 0.22s; }
+.col-right > *:nth-child(3) { animation:slideLeft 0.55s var(--ease-out) both 0.32s; }
+
+/* ── Cards ── */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden; transition:box-shadow 0.25s; }
+.card:hover { box-shadow:var(--shadow); }
+.card-header { padding:14px 18px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface2); }
+.card-title { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text2); }
+.card-meta { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.05em; }
+
+/* ── Mode toggle ── */
+.mode-toggle { display:flex; gap:0; border-radius:var(--radius-sm); overflow:hidden; border:1px solid var(--border); background:var(--surface2); }
+.mode-btn { flex:1; padding:8px 10px; font-family:'Instrument Sans',sans-serif; font-size:12px; font-weight:500; color:var(--text3); background:transparent; border:none; cursor:pointer; transition:all 0.2s; text-align:center; line-height:1.3; }
+.mode-btn.active { background:var(--accent); color:#fff; }
+.mode-btn:not(.active):hover { background:var(--surface); color:var(--text); }
+
+/* ── HPC display ── */
+.hpc-display {
+  margin:18px 18px 0; padding:14px 16px;
+  background:var(--accent-bg); border:1px solid var(--accent-border); border-radius:var(--radius-sm);
+  display:flex; align-items:baseline; justify-content:space-between;
+  transition:all 0.3s;
+}
+.hpc-label { font-family:'Martian Mono',monospace; font-size:10px; color:var(--accent); letter-spacing:0.12em; text-transform:uppercase; }
+.hpc-val { font-family:'DM Serif Display',serif; font-size:28px; color:var(--accent); line-height:1; }
+.hpc-val.pop { animation:count-pop 0.35s var(--ease-spring); }
+.hpc-unit { font-family:'Martian Mono',monospace; font-size:10px; color:var(--accent); margin-left:4px; opacity:0.7; }
+
+/* ── Inputs ── */
+.settings-body { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+.field { display:flex; flex-direction:column; gap:5px; }
+.field-label { font-size:11.5px; font-weight:600; color:var(--text2); letter-spacing:0.02em; display:flex; align-items:center; justify-content:space-between; }
+.field-hint { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); font-weight:400; }
+.input-with-unit { display:flex; }
+.input-with-unit input { border-radius:var(--radius-sm) 0 0 var(--radius-sm) !important; flex:1; min-width:0; }
+.field-unit { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); padding:0 10px; flex-shrink:0; background:var(--surface2); border:1px solid var(--border); border-left:none; border-radius:0 var(--radius-sm) var(--radius-sm) 0; display:flex; align-items:center; }
+
+input[type="number"] {
+  width:100%; padding:8px 12px; background:var(--surface);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--text); font-family:'Martian Mono',monospace; font-size:12px;
+  outline:none; transition:border-color 0.18s, box-shadow 0.18s;
+  -moz-appearance:textfield;
+}
+input[type="number"]::-webkit-inner-spin-button { display:none; }
+input[type="number"]:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(201,98,47,0.1); }
+body.dark-mode input:focus { background:var(--surface2); }
+.field-divider { height:1px; background:var(--border); margin:2px 0; }
+
+/* ── Status ── */
+.status-wrap { min-height:24px; padding:0 18px 10px; }
+.status-msg { font-size:12px; font-weight:500; display:flex; align-items:center; gap:6px; }
+.status-msg.error { color:var(--red); animation:status-in 0.3s var(--ease-spring) both; }
+.status-msg.ok    { color:var(--green); animation:status-in 0.3s var(--ease-spring) both; }
+.status-msg.warn  { color:var(--accent); animation:status-in 0.3s var(--ease-spring) both; }
+
+/* ── Elevation SVG ── */
+.viz-wrap { padding:20px 20px 16px; }
+#elevSvg { width:100%; height:220px; }
+
+/* ── Target table ── */
+.target-header { padding:14px 18px 10px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface2); }
+.add-btn {
+  font-family:'Martian Mono',monospace; font-size:10px; letter-spacing:0.08em;
+  padding:4px 12px; border-radius:100px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text2); cursor:pointer;
+  transition:all 0.2s var(--ease-spring); display:flex; align-items:center; gap:4px;
+}
+.add-btn:hover { background:var(--accent-bg); border-color:var(--accent-border); color:var(--accent); transform:translateY(-1px); }
+
+.target-table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:12.5px; }
+thead th { padding:8px 14px; text-align:left; font-family:'Martian Mono',monospace; font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text3); border-bottom:1px solid var(--border); background:var(--surface2); font-weight:400; }
+tbody tr { border-bottom:1px solid var(--border); transition:background 0.15s; animation:row-in 0.25s var(--ease-out) both; }
+tbody tr:last-child { border-bottom:none; }
+tbody tr:hover { background:var(--surface2); }
+tbody td { padding:10px 14px; vertical-align:middle; }
+.td-label input {
+  font-family:'Instrument Sans',sans-serif; font-size:12px; color:var(--text);
+  background:transparent; border:none; outline:none; width:100%; padding:0;
+  transition:background 0.15s;
+}
+.td-label input::placeholder { color:var(--text3); }
+.td-label input:focus { background:var(--accent-bg); border-radius:3px; padding:0 4px; }
+.td-req-level input {
+  font-family:'Martian Mono',monospace; font-size:11px; color:var(--text);
+  background:transparent; border:1px solid transparent; border-radius:4px;
+  outline:none; width:80px; padding:3px 6px;
+  transition:border-color 0.15s, background 0.15s;
+}
+.td-req-level input:focus { border-color:var(--accent); background:var(--accent-bg); }
+
+.staff-reading {
+  font-family:'Martian Mono',monospace; font-size:13px; font-weight:400;
+  padding:4px 10px; border-radius:6px; display:inline-block; min-width:70px; text-align:center;
+  transition:all 0.3s;
+}
+.staff-reading.valid-cut  { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); }
+.staff-reading.valid-fill { background:var(--blue-bg);  color:var(--blue);  border:1px solid var(--blue-border); }
+.staff-reading.invalid    { background:var(--surface2); color:var(--text3); border:1px solid var(--border); }
+
+.cut-fill-chip {
+  font-family:'Martian Mono',monospace; font-size:9px; letter-spacing:0.08em;
+  text-transform:uppercase; padding:2px 7px; border-radius:100px; white-space:nowrap;
+}
+.chip-cut  { background:var(--green-bg); color:var(--green); border:1px solid var(--green-border); }
+.chip-fill { background:var(--blue-bg);  color:var(--blue);  border:1px solid var(--blue-border); }
+.chip-none { background:var(--surface2); color:var(--text3); border:1px solid var(--border); }
+
+.del-btn { background:none; border:none; cursor:pointer; color:var(--text3); padding:4px; border-radius:4px; transition:all 0.15s; display:flex; align-items:center; justify-content:center; }
+.del-btn:hover { color:var(--red); background:var(--red-bg); }
+.del-btn svg { width:14px; height:14px; }
+
+.empty-row td { text-align:center; padding:20px; font-family:'Martian Mono',monospace; font-size:11px; color:var(--text3); letter-spacing:0.06em; }
+
+/* ── Check card ── */
+.check-body { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+.check-result {
+  padding:12px 14px; border-radius:var(--radius-sm);
+  background:var(--surface2); border:1px solid var(--border);
+  display:flex; flex-direction:column; gap:4px; transition:all 0.3s;
+}
+.check-result.ok   { background:var(--green-bg); border-color:var(--green-border); }
+.check-result.warn { background:var(--red-bg); border-color:var(--red-border); }
+.check-result-row { display:flex; justify-content:space-between; align-items:baseline; }
+.check-result-label { font-size:11.5px; color:var(--text2); }
+.check-result-val { font-family:'DM Serif Display',serif; font-size:20px; color:var(--text); }
+.check-result.ok   .check-result-val { color:var(--green); }
+.check-result.warn .check-result-val { color:var(--red); }
+.check-diff { font-family:'Martian Mono',monospace; font-size:10px; margin-top:2px; }
+
+/* ── Easter egg: hint modal ── */
+.hint-overlay {
+  position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
+  background:rgba(26,23,20,0.7); backdrop-filter:blur(4px);
+  animation:fadeIn 0.25s ease both; cursor:pointer;
+}
+.hint-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:20px;
+  padding:32px 36px; max-width:460px; width:90%; cursor:default;
+  box-shadow:var(--shadow-lg); animation:scaleIn 0.4s var(--ease-spring) both;
+}
+.hint-title { font-family:'DM Serif Display',serif; font-size:26px; color:var(--text); margin-bottom:4px; }
+.hint-eyebrow { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:18px; }
+.hint-list { display:flex; flex-direction:column; gap:10px; }
+.hint-item { display:flex; gap:10px; align-items:flex-start; }
+.hint-key { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-border); padding:2px 7px; border-radius:4px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.hint-desc { font-size:12px; color:var(--text2); line-height:1.5; }
+.hint-footer { font-family:'Martian Mono',monospace; font-size:9px; color:var(--text3); margin-top:20px; letter-spacing:0.08em; }
+.badge { cursor:pointer; }
+.badge:active { transform:scale(0.95) !important; }
+.rain-drop {
+  position:absolute; width:1.5px; border-radius:2px;
+  background:linear-gradient(to bottom, transparent, var(--blue));
+  pointer-events:none; opacity:0.5;
+  animation:rain-fall linear forwards;
+}
+@keyframes rain-fall {
+  from { transform:translateY(-20px); opacity:0.5; }
+  to   { transform:translateY(230px); opacity:0; }
+}
+
+/* ── Easter egg: page tilt ── */
+@keyframes tilt-in  { from { transform:rotate(0deg); } to { transform:rotate(2deg); } }
+@keyframes tilt-out { from { transform:rotate(2deg); } to { transform:rotate(0deg); } }
+.app.tilted    { animation:tilt-in  0.6s var(--ease-out) forwards; transform-origin:center center; }
+.app.untilting { animation:tilt-out 1.2s var(--ease-out) forwards; transform-origin:center center; }
+
+/* ── Easter egg: hs2 blank ── */
+.hs2-overlay {
+  position:fixed; inset:0; z-index:9000; background:var(--bg);
+  display:flex; align-items:center; justify-content:center;
+  animation:fadeIn 0.4s ease both;
+}
+.hs2-text {
+  font-family:'DM Serif Display',serif; font-size:32px; color:var(--text3);
+  text-align:center; line-height:1.4;
+}
+
+/* ── Easter egg: TBM sinking ── */
+@keyframes tbm-sink {
+  from { transform:translateY(0); }
+  to   { transform:translateY(28px); }
+}
+#tbmTriangle.sinking { animation:tbm-sink 10s linear forwards; }
+
+@media (max-width:740px) { .grid { grid-template-columns:1fr; } h1 { font-size:36px; } }
+</style>
+</head>
+<body>
+<div class="dark-scrim"></div>
+<div class="app">
+
+  <header>
+    <div class="header-left">
+      <div class="header-eyebrow">Height of Plane of Collimation</div>
+      <h1>Laser <em>Level</em></h1>
+    </div>
+    <div class="header-right">
+      <div class="badge" id="settingOutBadge">Setting Out · Levels</div>
+      <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌑 night shift</button>
+      <a href="index.html" class="back-link" id="backLink">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Toolbox
+      </a>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- ── LEFT COLUMN ── -->
+    <div class="col-left">
+
+      <!-- Elevation diagram -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Elevation Diagram</span>
+          <span class="card-meta" id="vizMeta">—</span>
+        </div>
+        <div class="viz-wrap" id="vizWrap" style="position:relative;overflow:hidden;">
+          <svg id="elevSvg" viewBox="0 0 480 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--text3)"/>
+              </marker>
+              <marker id="arr-l" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--text3)"/>
+              </marker>
+              <marker id="arr-r-acc" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--accent)"/>
+              </marker>
+              <marker id="arr-l-acc" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+                <path d="M0,0 L0,6 L6,3 z" fill="var(--accent)"/>
+              </marker>
+              <pattern id="ground-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                <line x1="0" y1="0" x2="0" y2="8" stroke="var(--border2)" stroke-width="2"/>
+              </pattern>
+            </defs>
+
+            <!-- Ground fill -->
+            <rect id="gndFill" x="0" y="170" width="480" height="30" fill="url(#ground-hatch)" opacity="0.5"/>
+            <line id="gndLine" x1="0" y1="170" x2="480" y2="170" stroke="var(--border2)" stroke-width="1.5"/>
+
+            <!-- TBM symbol (triangle) -->
+            <polygon id="tbmTriangle" points="60,170 54,182 66,182" fill="var(--accent)" opacity="0.85"/>
+            <text id="tbmLabel" x="60" y="192" text-anchor="middle" font-family="Martian Mono, monospace" font-size="9" fill="var(--accent)" letter-spacing="0.05em">TBM</text>
+            <text id="tbmLevel" x="60" y="202" text-anchor="middle" font-family="Martian Mono, monospace" font-size="8.5" fill="var(--text3)">—</text>
+
+            <!-- Staff on TBM -->
+            <rect id="staffTbm" x="57" y="100" width="6" height="70" fill="var(--accent)" opacity="0.25" rx="1"/>
+            <line id="staffTbmTick" x1="53" y1="100" x2="67" y2="100" stroke="var(--accent)" stroke-width="1.5"/>
+            <text id="staffTbmLabel" x="46" y="104" text-anchor="end" font-family="Martian Mono, monospace" font-size="9" fill="var(--accent)">—</text>
+
+            <!-- Laser beam -->
+            <line id="laserBeam" x1="30" y1="100" x2="450" y2="100" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="8,4" opacity="0.8" style="animation:laser-scan 2s ease-in-out infinite"/>
+            <text id="hpcLineLabel" x="240" y="96" text-anchor="middle" font-family="Martian Mono, monospace" font-size="9" fill="var(--accent)" letter-spacing="0.06em">HPC = —</text>
+
+            <!-- Target staff (right side) -->
+            <rect id="staffTarget" x="377" y="100" width="6" height="70" fill="var(--blue)" opacity="0.25" rx="1"/>
+            <line id="staffTargetTick" x1="373" y1="100" x2="387" y2="100" stroke="var(--blue)" stroke-width="1.5"/>
+            <text id="staffTargetLabel" x="392" y="104" text-anchor="start" font-family="Martian Mono, monospace" font-size="9" fill="var(--blue)">—</text>
+
+            <!-- Target level label -->
+            <text id="targetLevelLabel" x="380" y="192" text-anchor="middle" font-family="Martian Mono, monospace" font-size="8.5" fill="var(--text3)">—</text>
+
+            <!-- HPC vertical dim (left edge) -->
+            <line id="dimHpcLine" x1="22" y1="100" x2="22" y2="170" stroke="var(--accent)" stroke-width="1" marker-start="url(#arr-l-acc)" marker-end="url(#arr-r-acc)" opacity="0.6"/>
+            <text id="dimHpcLabel" x="10" y="138" text-anchor="middle" font-family="Martian Mono, monospace" font-size="8" fill="var(--accent)" transform="rotate(-90,10,138)">staff</text>
+
+            <!-- Target staff dim (right edge) -->
+            <line id="dimTargetLine" x1="458" y1="100" x2="458" y2="170" stroke="var(--blue)" stroke-width="1" marker-start="url(#arr-l)" marker-end="url(#arr-r)" opacity="0.6"/>
+            <text id="dimTargetVal" x="468" y="138" text-anchor="middle" font-family="Martian Mono, monospace" font-size="8" fill="var(--blue)" transform="rotate(-90,468,138)">req. staff</text>
+
+            <!-- No data placeholder -->
+            <text id="noDataText" x="240" y="105" text-anchor="middle" font-family="Martian Mono, monospace" font-size="11" fill="var(--text3)" letter-spacing="0.06em">Enter setup inputs to see diagram</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Target levels table -->
+      <div class="card">
+        <div class="target-header">
+          <span class="card-title" style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text2);">Target Levels</span>
+          <button class="add-btn" onclick="addRow()">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add level
+          </button>
+        </div>
+        <div class="target-table-wrap">
+          <table id="targetTable">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Required Level (mAOD)</th>
+                <th>Required Staff</th>
+                <th>Cut / Fill</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="targetBody">
+              <tr class="empty-row" id="emptyRow">
+                <td colspan="5">No targets added yet — click Add level</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /col-left -->
+
+    <!-- ── RIGHT COLUMN ── -->
+    <div class="col-right">
+
+      <!-- Setup card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Setup</span>
+          <span class="card-meta" id="setupMeta">—</span>
+        </div>
+        <div class="settings-body" style="padding-top:14px;">
+
+          <!-- Mode toggle -->
+          <div class="field">
+            <div class="field-label">Setup method</div>
+            <div class="mode-toggle">
+              <button class="mode-btn active" id="btnModeTBM" onclick="setMode('tbm')">Staff on TBM</button>
+              <button class="mode-btn" id="btnModeDirect" onclick="setMode('direct')">Direct HPC</button>
+            </div>
+          </div>
+
+          <!-- TBM mode inputs -->
+          <div id="tbmInputs">
+            <div class="field" style="margin-bottom:0;">
+              <div class="field-label">TBM Level <span class="field-hint">known benchmark</span></div>
+              <div class="input-with-unit">
+                <input type="number" id="inTBM" value="100.000" step="0.001" oninput="calculate()">
+                <div class="field-unit">mAOD</div>
+              </div>
+            </div>
+            <div class="field" style="margin-top:12px;">
+              <div class="field-label">Staff Reading on TBM <span class="field-hint">backsight</span></div>
+              <div class="input-with-unit">
+                <input type="number" id="inBacksight" value="1.234" min="0" step="0.001" oninput="calculate()">
+                <div class="field-unit">m</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Direct mode inputs -->
+          <div id="directInputs" style="display:none;">
+            <div class="field">
+              <div class="field-label">Height of Plane of Collimation <span class="field-hint">direct entry</span></div>
+              <div class="input-with-unit">
+                <input type="number" id="inHPCdirect" value="101.234" step="0.001" oninput="calculate()">
+                <div class="field-unit">mAOD</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- HPC result -->
+        <div class="hpc-display" id="hpcDisplay">
+          <div>
+            <div class="hpc-label">HPC</div>
+            <div style="display:flex;align-items:baseline;gap:4px;">
+              <div class="hpc-val" id="hpcVal">—</div>
+              <div class="hpc-unit">mAOD</div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--accent);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:2px;">Staff on TBM</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--accent);" id="hpcStaffVal">—</div>
+          </div>
+        </div>
+
+        <div class="status-wrap" style="margin-top:14px;">
+          <div class="status-msg" id="statusMsg"></div>
+        </div>
+      </div>
+
+      <!-- Level check card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Check a Level</span>
+          <span class="card-meta">foresight</span>
+        </div>
+        <div class="check-body">
+          <div class="field">
+            <div class="field-label">Measured Staff Reading <span class="field-hint">on unknown point</span></div>
+            <div class="input-with-unit">
+              <input type="number" id="inCheck" value="" placeholder="e.g. 1.850" step="0.001" oninput="calculateCheck()">
+              <div class="field-unit">m</div>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">Design Level <span class="field-hint">optional, for comparison</span></div>
+            <div class="input-with-unit">
+              <input type="number" id="inDesign" value="" placeholder="e.g. 99.500" step="0.001" oninput="calculateCheck()">
+              <div class="field-unit">mAOD</div>
+            </div>
+          </div>
+          <div class="check-result" id="checkResult">
+            <div class="check-result-row">
+              <span class="check-result-label">Actual Level</span>
+              <span class="check-result-val" id="checkActual">—</span>
+            </div>
+            <div class="check-diff" id="checkDiff" style="color:var(--text3);">Enter a staff reading above</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick ref card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Quick Reference</span>
+        </div>
+        <div style="padding:14px 18px;display:flex;flex-direction:column;gap:8px;">
+          <div style="font-family:'Martian Mono',monospace;font-size:11px;color:var(--text2);line-height:1.7;">
+            <span style="color:var(--accent);">HPC</span> = TBM + backsight
+          </div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="font-family:'Martian Mono',monospace;font-size:11px;color:var(--text2);line-height:1.7;">
+            <span style="color:var(--accent);">Req. staff</span> = HPC − required level
+          </div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="font-family:'Martian Mono',monospace;font-size:11px;color:var(--text2);line-height:1.7;">
+            <span style="color:var(--accent);">Actual level</span> = HPC − measured staff
+          </div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-top:2px;">
+            <span style="color:var(--green);font-weight:600;">Cut</span> = ground is high, dig down<br>
+            <span style="color:var(--blue);font-weight:600;">Fill</span> = ground is low, build up
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /col-right -->
+  </div><!-- /grid -->
+</div><!-- /app -->
+
+<script>
+// ── Dark mode ──
+(function() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('darkmode') === 'true' || localStorage.getItem('darkmode') === 'true') {
+    document.body.classList.add('dark-mode');
+  }
+})();
+
+function toggleDark() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkmode', isDark ? 'true' : 'false');
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
+  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
+}
+
+(function() {
+  const isDark = document.body.classList.contains('dark-mode');
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
+  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
+})();
+
+// ── State ──
+let mode = 'tbm';   // 'tbm' | 'direct'
+let hpc  = null;
+let rows = [];
+let rowId = 0;
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('tbmInputs').style.display    = m === 'tbm'    ? '' : 'none';
+  document.getElementById('directInputs').style.display = m === 'direct' ? '' : 'none';
+  document.getElementById('btnModeTBM').classList.toggle('active',    m === 'tbm');
+  document.getElementById('btnModeDirect').classList.toggle('active', m === 'direct');
+  // show/hide staff-on-TBM reading in HPC display
+  document.getElementById('hpcStaffVal').closest('div').style.display = m === 'tbm' ? '' : 'none';
+  calculate();
+}
+
+function calculate() {
+  clearStatus();
+
+  if (mode === 'tbm') {
+    const tbm = parseFloat(document.getElementById('inTBM').value);
+    const bs  = parseFloat(document.getElementById('inBacksight').value);
+    if (isNaN(tbm) || isNaN(bs)) { hpc = null; updateHPCDisplay(); return; }
+    if (bs < 0) { setStatus('Backsight cannot be negative.', 'error'); hpc = null; updateHPCDisplay(); return; }
+    if (Math.abs(bs - 1.000) < 0.0001) {
+      showToast('🤨', 'var(--surface2)', 'Suspiciously round number.', "Did you actually read that staff?", 3000);
+    }
+    hpc = tbm + bs;
+    document.getElementById('hpcStaffVal').textContent = bs.toFixed(3) + ' m';
+    document.getElementById('setupMeta').textContent = `TBM ${tbm.toFixed(3)}`;
+  } else {
+    const direct = parseFloat(document.getElementById('inHPCdirect').value);
+    if (isNaN(direct)) { hpc = null; updateHPCDisplay(); return; }
+    hpc = direct;
+    document.getElementById('setupMeta').textContent = 'direct entry';
+  }
+
+  updateHPCDisplay();
+  updateTableRows();
+  updateVisualization();
+  calculateCheck();
+  saveState();
+}
+
+function updateHPCDisplay() {
+  const el = document.getElementById('hpcVal');
+  if (hpc === null) {
+    el.textContent = '—';
+    document.getElementById('vizMeta').textContent = '—';
+    updateVisualization();
+    return;
+  }
+  el.textContent = hpc.toFixed(3);
+  el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+  document.getElementById('vizMeta').textContent = `HPC = ${hpc.toFixed(3)} mAOD`;
+}
+
+// ── Table rows ──
+let rowActionTimes = [];
+function trackRowAction() {
+  const now = Date.now();
+  rowActionTimes.push(now);
+  rowActionTimes = rowActionTimes.filter(t => now - t < 3000);
+  if (rowActionTimes.length >= 5) {
+    rowActionTimes = [];
+    showToast('🤦', 'var(--surface2)', 'Make your mind up.', '5 changes in 3 seconds.', 2500);
+  }
+}
+
+function addRow() {
+  trackRowAction();
+  const id = rowId++;
+  rows.push({ id, label: '', reqLevel: '' });
+  renderTable();
+  saveState();
+  setTimeout(() => {
+    const inp = document.getElementById(`lbl-${id}`);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+function deleteRow(id) {
+  trackRowAction();
+  rows = rows.filter(r => r.id !== id);
+  renderTable();
+  saveState();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('targetBody');
+  const emptyRow = document.getElementById('emptyRow');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    tbody.appendChild(buildEmptyRow());
+    return;
+  }
+
+  tbody.innerHTML = '';
+  rows.forEach((row, i) => {
+    const reqLevel = parseFloat(row.reqLevel);
+    let staffReading = '—', chipHTML = '', staffClass = 'invalid';
+    let diff = null;
+
+    if (hpc !== null && !isNaN(reqLevel)) {
+      const req = hpc - reqLevel;
+      staffReading = req.toFixed(3) + ' m';
+      diff = reqLevel - (hpc - req); // should be 0, but for cut/fill vs actual ground: use req level vs tbm level as proxy
+      // Cut/fill: if required staff > 0, the level is below HPC (achievable). Positive req = cut from existing if existing ground is at TBM level
+      if (req < 0) {
+        staffClass = 'invalid';
+        staffReading = '⚠ above HPC';
+        chipHTML = `<span class="cut-fill-chip chip-none">Check</span>`;
+      } else {
+        staffClass = 'valid-cut';
+        chipHTML = `<span class="cut-fill-chip chip-cut">Set out</span>`;
+      }
+    }
+
+    const tr = document.createElement('tr');
+    tr.style.animationDelay = `${i * 0.04}s`;
+    tr.innerHTML = `
+      <td class="td-label"><input id="lbl-${row.id}" type="text" placeholder="e.g. FL at MH3" value="${row.label}" oninput="rows[${i}].label=this.value;saveState()"></td>
+      <td class="td-req-level"><input id="rl-${row.id}" type="number" step="0.001" placeholder="99.500" value="${row.reqLevel}" oninput="rows[${i}].reqLevel=this.value;renderTable();updateVisualization();saveState()"></td>
+      <td><span class="staff-reading ${staffClass}">${staffReading}</span></td>
+      <td>${chipHTML || '<span class="cut-fill-chip chip-none">—</span>'}</td>
+      <td><button class="del-btn" onclick="deleteRow(${row.id})" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function buildEmptyRow() {
+  const tr = document.createElement('tr');
+  tr.className = 'empty-row'; tr.id = 'emptyRow';
+  tr.innerHTML = '<td colspan="5">No targets added yet — click Add level</td>';
+  return tr;
+}
+
+function updateTableRows() { renderTable(); }
+
+// ── Check a level ──
+function calculateCheck() {
+  const staff  = parseFloat(document.getElementById('inCheck').value);
+  const design = parseFloat(document.getElementById('inDesign').value);
+  const result = document.getElementById('checkResult');
+  const actual = document.getElementById('checkActual');
+  const diff   = document.getElementById('checkDiff');
+
+  if (hpc === null || isNaN(staff)) {
+    actual.textContent = '—';
+    diff.textContent   = hpc === null ? 'Set up laser first' : 'Enter a staff reading above';
+    diff.style.color   = 'var(--text3)';
+    result.className   = 'check-result';
+    return;
+  }
+
+  const lvl = hpc - staff;
+  actual.textContent = lvl.toFixed(3) + ' mAOD';
+  actual.classList.remove('pop'); void actual.offsetWidth; actual.classList.add('pop');
+
+  if (!isNaN(design)) {
+    const delta = lvl - design;
+    const absDelta = Math.abs(delta).toFixed(3);
+    if (Math.abs(delta) < 0.002) {
+      diff.textContent = '✓ On level';
+      diff.style.color = 'var(--green)';
+      result.className = 'check-result ok';
+    } else if (delta > 0) {
+      diff.textContent = `${absDelta} m HIGH — needs ${absDelta} m cut`;
+      diff.style.color = 'var(--red)';
+      result.className = 'check-result warn';
+    } else {
+      diff.textContent = `${absDelta} m LOW — needs ${absDelta} m fill`;
+      diff.style.color = 'var(--blue)';
+      result.className = 'check-result';
+      result.style.background = 'var(--blue-bg)';
+      result.style.borderColor = 'var(--blue-border)';
+      return;
+    }
+  } else {
+    diff.textContent = 'Enter design level to check cut / fill';
+    diff.style.color = 'var(--text3)';
+    result.className = 'check-result';
+  }
+  result.style.background = '';
+  result.style.borderColor = '';
+  saveState();
+}
+
+// ── Elevation SVG ──
+function updateVisualization() {
+  const noData  = document.getElementById('noDataText');
+  const laser   = document.getElementById('laserBeam');
+  const hpcLbl  = document.getElementById('hpcLineLabel');
+  const staffTbm = document.getElementById('staffTbm');
+  const staffTbmTick = document.getElementById('staffTbmTick');
+  const staffTbmLabel = document.getElementById('staffTbmLabel');
+  const tbmLvlTxt = document.getElementById('tbmLevel');
+  const staffTarget = document.getElementById('staffTarget');
+  const staffTargetTick = document.getElementById('staffTargetTick');
+  const staffTargetLabel = document.getElementById('staffTargetLabel');
+  const targetLvlTxt = document.getElementById('targetLevelLabel');
+  const dimHpc  = document.getElementById('dimHpcLine');
+  const dimTgt  = document.getElementById('dimTargetLine');
+
+  if (hpc === null) {
+    noData.setAttribute('opacity','1');
+    laser.setAttribute('opacity','0');
+    hpcLbl.setAttribute('opacity','0');
+    [staffTbm,staffTbmTick,staffTbmLabel,staffTarget,staffTargetTick,staffTargetLabel,dimHpc,dimTgt].forEach(e=>e.setAttribute('opacity','0'));
+    return;
+  }
+
+  noData.setAttribute('opacity','0');
+  laser.setAttribute('opacity','0.8');
+  hpcLbl.setAttribute('opacity','1');
+  [staffTbm,staffTbmTick,staffTbmLabel,staffTarget,staffTargetTick,staffTargetLabel,dimHpc,dimTgt].forEach(e=>e.setAttribute('opacity','1'));
+
+  // SVG geometry
+  const gndY   = 170;
+  const maxH   = 140; // max staff height in SVG px
+  let bs = 0;
+
+  if (mode === 'tbm') {
+    bs = parseFloat(document.getElementById('inBacksight').value) || 1.0;
+  } else {
+    const tbm = parseFloat(document.getElementById('inTBM').value);
+    bs = isNaN(tbm) ? 1.0 : hpc - (tbm || hpc - 1.0);
+  }
+
+  // Get first valid target for diagram
+  let reqStaff = 1.0, reqLevel = null;
+  const firstValid = rows.find(r => !isNaN(parseFloat(r.reqLevel)));
+  if (firstValid) {
+    reqLevel = parseFloat(firstValid.reqLevel);
+    reqStaff = hpc - reqLevel;
+  }
+
+  // Scale: pick a reference length for normalisation
+  const refLen = Math.max(Math.abs(bs), Math.abs(reqStaff), 0.5);
+  const scale  = Math.min(maxH / refLen, 60);
+
+  const laserY = gndY - bs * scale;
+  const laserYclamped = Math.max(20, Math.min(gndY - 4, laserY));
+
+  // TBM staff
+  staffTbm.setAttribute('y',    laserYclamped);
+  staffTbm.setAttribute('height', gndY - laserYclamped);
+  staffTbmTick.setAttribute('y1', laserYclamped); staffTbmTick.setAttribute('y2', laserYclamped);
+  staffTbmTick.setAttribute('x1', 53); staffTbmTick.setAttribute('x2', 67);
+  staffTbmLabel.setAttribute('y', laserYclamped + 4);
+  staffTbmLabel.textContent = bs.toFixed(3) + ' m';
+
+  // Laser beam
+  laser.setAttribute('y1', laserYclamped); laser.setAttribute('y2', laserYclamped);
+  hpcLbl.setAttribute('y', laserYclamped - 5);
+  hpcLbl.textContent = `HPC = ${hpc.toFixed(3)} mAOD`;
+
+  // TBM level text
+  const tbmLvl = mode === 'tbm' ? parseFloat(document.getElementById('inTBM').value) : hpc - bs;
+  tbmLvlTxt.textContent = isNaN(tbmLvl) ? '' : tbmLvl.toFixed(3);
+
+  // Dim line (left)
+  dimHpc.setAttribute('y1', laserYclamped); dimHpc.setAttribute('y2', gndY);
+
+  // Target staff
+  if (reqLevel !== null && reqStaff > 0) {
+    const tgtY = gndY - reqStaff * scale;
+    const tgtYclamped = Math.max(20, Math.min(gndY - 4, tgtY));
+    staffTarget.setAttribute('y',      laserYclamped);
+    staffTarget.setAttribute('height', gndY - laserYclamped);
+    staffTargetTick.setAttribute('y1', tgtYclamped); staffTargetTick.setAttribute('y2', tgtYclamped);
+    staffTargetLabel.setAttribute('y', tgtYclamped + 4);
+    staffTargetLabel.textContent = reqStaff.toFixed(3) + ' m';
+    targetLvlTxt.textContent = reqLevel.toFixed(3);
+    dimTgt.setAttribute('y1', laserYclamped); dimTgt.setAttribute('y2', gndY);
+    staffTarget.setAttribute('opacity','1');
+    staffTargetTick.setAttribute('opacity','1');
+    staffTargetLabel.setAttribute('opacity','1');
+    dimTgt.setAttribute('opacity','0.6');
+    targetLvlTxt.setAttribute('opacity','1');
+  } else {
+    staffTarget.setAttribute('opacity','0');
+    staffTargetTick.setAttribute('opacity','0');
+    staffTargetLabel.setAttribute('opacity','0');
+    dimTgt.setAttribute('opacity','0');
+    targetLvlTxt.setAttribute('opacity','0');
+  }
+}
+
+function setStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg; el.className = 'status-msg ' + type;
+}
+function clearStatus() { setStatus('',''); }
+
+// ── Toast helper ──
+function showToast(icon, iconBg, title, sub, duration=2500) {
+  document.querySelectorAll('.ee-toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = 'ee-toast';
+  t.style.cssText = `position:fixed;bottom:28px;right:28px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:12px;max-width:340px;font-family:'Instrument Sans',sans-serif;animation:slideUp 0.4s var(--ease-spring) both;`;
+  t.innerHTML = `
+    <div style="width:32px;height:32px;border-radius:50%;background:${iconBg};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${icon}</div>
+    <div><div style="font-size:13px;font-weight:600;color:var(--text);">${title}</div>${sub ? `<div style="font-family:'Martian Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;">${sub}</div>` : ''}</div>
+  `;
+  document.body.appendChild(t);
+  setTimeout(()=>{
+    t.style.transition='opacity 0.3s,transform 0.3s';
+    t.style.opacity='0'; t.style.transform='translateY(8px)';
+    setTimeout(()=>t.remove(),320);
+  }, duration);
+}
+
+// ── Easter egg: keyboard sequences ──
+let eeBuf = '';
+document.addEventListener('keydown', e => {
+  if (e.key.length !== 1) return;
+  eeBuf += e.key.toLowerCase();
+  if (eeBuf.length > 12) eeBuf = eeBuf.slice(-12);
+
+  // 1. "monday" — tilt page
+  if (eeBuf.endsWith('monday')) {
+    eeBuf = '';
+    triggerMonday();
+  }
+  // 2. "raining" — rain in diagram
+  if (eeBuf.endsWith('raining')) {
+    eeBuf = '';
+    triggerRain();
+  }
+  // 6. "hs2" — blank page
+  if (eeBuf.endsWith('hs2')) {
+    eeBuf = '';
+    triggerHS2();
+  }
+});
+
+// ── Easter egg 1: monday tilt ──
+function triggerMonday() {
+  const app = document.querySelector('.app');
+  app.classList.remove('untilting');
+  app.classList.add('tilted');
+  showToast('😩', 'var(--surface2)', "Site's not level.", "Neither is your mood.", 3000);
+  setTimeout(() => {
+    app.classList.remove('tilted');
+    app.classList.add('untilting');
+    setTimeout(() => app.classList.remove('untilting'), 1300);
+  }, 3000);
+}
+
+// ── Easter egg 2: rain ──
+let rainInterval = null;
+function triggerRain() {
+  if (rainInterval) return; // already raining
+  const wrap = document.getElementById('vizWrap');
+  const laser = document.getElementById('laserBeam');
+  showToast('🌧️', 'var(--blue-bg)', 'Lovely day on site.', 'Laser struggling in the rain.', 3500);
+
+  // Flicker laser
+  let flickerCount = 0;
+  const flicker = setInterval(() => {
+    const op = Math.random() > 0.4 ? '0.8' : '0.2';
+    laser.setAttribute('opacity', op);
+    if (++flickerCount > 30) { clearInterval(flicker); laser.setAttribute('opacity','0.8'); }
+  }, 120);
+
+  // Spawn rain drops
+  rainInterval = setInterval(() => {
+    const drop = document.createElement('div');
+    drop.className = 'rain-drop';
+    const h = 8 + Math.random() * 14;
+    drop.style.left   = (Math.random() * 100) + '%';
+    drop.style.top    = '0px';
+    drop.style.height = h + 'px';
+    const dur = 0.5 + Math.random() * 0.4;
+    drop.style.animationDuration = dur + 's';
+    wrap.appendChild(drop);
+    setTimeout(() => drop.remove(), dur * 1000 + 100);
+  }, 60);
+
+  setTimeout(() => {
+    clearInterval(rainInterval);
+    rainInterval = null;
+    // Remove any lingering drops
+    wrap.querySelectorAll('.rain-drop').forEach(d => d.remove());
+  }, 5000);
+}
+
+// ── Easter egg 3: idle 60s — TBM sinks ──
+let idleTimer;
+let tbmSunk = false;
+function resetIdle() {
+  clearTimeout(idleTimer);
+  if (tbmSunk) {
+    tbmSunk = false;
+    const tri = document.getElementById('tbmTriangle');
+    tri.classList.remove('sinking');
+    void tri.offsetWidth;
+  }
+  idleTimer = setTimeout(() => {
+    tbmSunk = true;
+    document.getElementById('tbmTriangle').classList.add('sinking');
+    showToast('📉', 'var(--surface2)', 'Settlement detected.', 'TBM is on the move. Re-level.', 4000);
+  }, 60000);
+}
+['mousemove','keydown','click','scroll'].forEach(ev => document.addEventListener(ev, resetIdle));
+resetIdle();
+
+// ── Easter egg 6: hs2 ──
+function triggerHS2() {
+  const overlay = document.createElement('div');
+  overlay.className = 'hs2-overlay';
+  overlay.innerHTML = `<div class="hs2-text">Project cancelled.<br><span style="font-size:18px;color:var(--text3);font-family:'Martian Mono',monospace;font-size:13px;letter-spacing:0.08em;">Scope changed. Budget revised.<br>Start again.</span></div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => {
+    overlay.style.transition = 'opacity 0.5s';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 520);
+    showToast('🚄', 'var(--surface2)', 'HS2 Phase 3 cancelled.', 'Nothing unusual here.', 3000);
+  }, 3000);
+}
+
+// ── Easter egg: badge 3x click — hint modal ──
+let badgeClicks = 0, badgeTimer;
+document.getElementById('settingOutBadge').addEventListener('click', () => {
+  badgeClicks++;
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => { badgeClicks = 0; }, 1200);
+  if (badgeClicks >= 3) {
+    badgeClicks = 0;
+    showHintModal();
+  }
+});
+
+function showHintModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'hint-overlay';
+  overlay.innerHTML = `
+    <div class="hint-box" onclick="event.stopPropagation()">
+      <div class="hint-eyebrow">classified · site eyes only</div>
+      <div class="hint-title">Easter Eggs</div>
+      <div class="hint-list">
+        <div class="hint-item">
+          <span class="hint-key">type "monday"</span>
+          <span class="hint-desc">Page tilts 2° off level. Slowly corrects itself.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">type "raining"</span>
+          <span class="hint-desc">Rain falls through the diagram. Laser starts flickering.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">idle 60 seconds</span>
+          <span class="hint-desc">The TBM slowly sinks into the ground. Settlement detected.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">backsight = 1.000</span>
+          <span class="hint-desc">Did you actually read that staff?</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">type "hs2"</span>
+          <span class="hint-desc">Project cancelled. Scope changed. Start again.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">add / delete 5 rows in 3s</span>
+          <span class="hint-desc">Make your mind up.</span>
+        </div>
+      </div>
+      <div class="hint-footer">[ click anywhere to close ]</div>
+    </div>
+  `;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+// ── Persistence ──
+const STORE_KEY = 'laserlevel_v1';
+
+function saveState() {
+  const state = {
+    mode,
+    tbm:       document.getElementById('inTBM').value,
+    backsight: document.getElementById('inBacksight').value,
+    hpcDirect: document.getElementById('inHPCdirect').value,
+    checkStaff: document.getElementById('inCheck').value,
+    checkDesign: document.getElementById('inDesign').value,
+    rows: rows.map(r => ({ label: r.label, reqLevel: r.reqLevel }))
+  };
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.tbm)        document.getElementById('inTBM').value        = s.tbm;
+    if (s.backsight)  document.getElementById('inBacksight').value  = s.backsight;
+    if (s.hpcDirect)  document.getElementById('inHPCdirect').value  = s.hpcDirect;
+    if (s.checkStaff) document.getElementById('inCheck').value      = s.checkStaff;
+    if (s.checkDesign)document.getElementById('inDesign').value     = s.checkDesign;
+    if (s.rows && s.rows.length) {
+      rows = s.rows.map(r => ({ id: rowId++, label: r.label, reqLevel: r.reqLevel }));
+    }
+    if (s.mode) setMode(s.mode);
+  } catch(e) {}
+}
+
+// Init
+setMode('tbm');
+loadState();
+calculate();
+</script>
+</body>
+</html>

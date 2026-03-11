@@ -22,10 +22,36 @@
   --ease-out: cubic-bezier(0.16,1,0.3,1);
 }
 
-html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Instrument Sans',sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+body.dark-mode {
+  --bg:#111009; --surface:#1a1714; --surface2:#1f1c18;
+  --border:#2e2925; --border2:#3a3530;
+  --text:#e8e4df; --text2:#a59d94; --text3:#6b6259;
+  --accent:#e07840; --accent-bg:#2a1a10; --accent-border:#5a3020;
+  --green:#3a9966; --green-bg:#0d2018; --red:#e05040;
+  --shadow-sm:0 1px 3px rgba(0,0,0,0.3),0 1px 2px rgba(0,0,0,0.2);
+  --shadow:0 4px 16px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* Dark mode scrim */
+.dark-scrim {
+  position:fixed; inset:0; z-index:0;
+  background:rgba(6,5,3,0.0); backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
+  pointer-events:none;
+  transition: background 0.5s ease, backdrop-filter 0.5s ease, -webkit-backdrop-filter 0.5s ease;
+}
+body.dark-mode .dark-scrim {
+  background:rgba(6,5,3,0.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
+}
+
+html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Instrument Sans',sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; transition:background 0.5s, color 0.5s; }
 
 /* Paper grain */
 body::before { content:''; position:fixed; inset:0; opacity:0.025; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:200px; pointer-events:none; z-index:0; }
+
+/* Grid overlay */
+body::after { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(201,98,47,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(201,98,47,0.03) 1px, transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; opacity:0.6; }
+
+body.dark-mode input:focus, body.dark-mode select:focus { background:var(--surface2); }
 
 /* ── Page load animations ── */
 @keyframes slideDown  { from { opacity:0; transform:translateY(-22px); } to { opacity:1; transform:none; } }
@@ -66,7 +92,12 @@ h1 {
   animation: slideDown 0.7s var(--ease-out) both 0.1s;
 }
 h1 em { font-style:italic; color:var(--accent); }
-.header-right { display:flex; align-items:center; gap:6px; padding-bottom:4px; }
+.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:4px; }
+.back-link { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.1em; text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s,gap 0.2s var(--ease-spring); }
+.back-link:hover { color:var(--accent); gap:8px; }
+.back-link svg { width:12px; height:12px; }
+.dark-toggle { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); background:none; border:1px solid var(--border); border-radius:100px; padding:4px 10px; cursor:pointer; letter-spacing:0.1em; transition:all 0.2s; display:flex; align-items:center; gap:5px; }
+.dark-toggle:hover { color:var(--accent); border-color:var(--accent-border); background:var(--accent-bg); }
 .badge {
   font-family:'Martian Mono',monospace; font-size:10px; font-weight:300;
   letter-spacing:0.12em; padding:4px 10px; border-radius:100px;
@@ -363,6 +394,26 @@ code {
   animation: check-draw 0.4s ease 0.1s both;
 }
 
+/* ── Easter egg: hint modal ── */
+.hint-overlay {
+  position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
+  background:rgba(26,23,20,0.7); backdrop-filter:blur(4px);
+  animation:fadeIn 0.25s ease both; cursor:pointer;
+}
+.hint-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:20px;
+  padding:32px 36px; max-width:460px; width:90%; cursor:default;
+  box-shadow:var(--shadow-lg); animation:scaleIn 0.4s var(--ease-spring) both;
+}
+.hint-title { font-family:'DM Serif Display',serif; font-size:26px; color:var(--text); margin-bottom:4px; }
+.hint-eyebrow { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:18px; }
+.hint-list { display:flex; flex-direction:column; gap:10px; }
+.hint-item { display:flex; gap:10px; align-items:flex-start; }
+.hint-key { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-border); padding:2px 7px; border-radius:4px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
+.hint-desc { font-size:12px; color:var(--text2); line-height:1.5; }
+.hint-footer { font-family:'Martian Mono',monospace; font-size:9px; color:var(--text3); margin-top:20px; letter-spacing:0.08em; }
+.badge { cursor:pointer; }
+
 /* ── Konami easter egg ── */
 .konami-overlay {
   position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;
@@ -376,6 +427,23 @@ code {
   animation:scaleIn 0.4s var(--ease-spring) both;
   font-family:'Martian Mono',monospace;
 }
+
+/* ── Toast ── */
+.toast {
+  position:fixed; bottom:28px; right:28px; z-index:9999;
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:14px 18px; box-shadow:0 12px 40px rgba(0,0,0,0.15);
+  display:flex; align-items:center; gap:12px; max-width:320px;
+  animation:slideUp 0.4s var(--ease-spring) both;
+  font-family:'Instrument Sans',sans-serif;
+}
+.toast-icon { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; }
+.toast-title { font-size:13px; font-weight:600; color:var(--text); }
+.toast-sub { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.05em; margin-top:2px; }
+
+/* ── Dark announce flash ── */
+@keyframes flash-in { 0% { opacity:0; transform:scale(0.8); } 50% { opacity:1; transform:scale(1.05); } 100% { opacity:1; transform:scale(1); } }
+.dark-announce { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; pointer-events:none; font-family:'DM Serif Display',serif; font-size:48px; color:var(--accent); animation:flash-in 0.5s var(--ease-spring) both, fadeIn 0.3s ease 1.2s reverse both; text-align:center; }
 .konami-title { font-family:'DM Serif Display',serif;font-size:32px;color:#4caf72;margin-bottom:8px; }
 .konami-seq { font-size:22px;letter-spacing:0.15em;margin:16px 0;color:#6cc49a; }
 .konami-msg { font-size:11px;color:#3a7d55;line-height:1.8;letter-spacing:0.06em; }
@@ -385,6 +453,7 @@ code {
 </style>
 </head>
 <body>
+<div class="dark-scrim"></div>
 <div class="app">
 
   <!-- ── Header ── -->
@@ -394,6 +463,12 @@ code {
       <h1>Coordinate<br><em>Converter</em></h1>
     </div>
     <div class="header-right">
+      <div class="badge" id="gpsBadge" onclick="badgeClick()">GPS → AutoCAD</div>
+      <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌑 night shift</button>
+      <a href="index.html" class="back-link" id="backLink">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Toolbox
+      </a>
     </div>
   </header>
 
@@ -543,6 +618,69 @@ code {
 </div>
 
 <script>
+// ── Dark mode (persist via URL param + localStorage) ──
+(function(){
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('darkmode') === 'true' || localStorage.getItem('darkmode') === 'true') {
+    document.body.classList.add('dark-mode');
+  }
+})();
+
+function toggleDark() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  localStorage.setItem('darkmode', isDark ? 'true' : 'false');
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
+  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
+}
+
+// Sync button label and back-link on load
+(function(){
+  const isDark = document.body.classList.contains('dark-mode');
+  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
+  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
+})();
+
+// ── Badge: 3x click → hint modal ──
+let badgeClicks = 0, badgeTimer;
+function badgeClick() {
+  badgeClicks++;
+  clearTimeout(badgeTimer);
+  badgeTimer = setTimeout(() => badgeClicks = 0, 900);
+  if (badgeClicks >= 3) {
+    badgeClicks = 0;
+    showHintModal();
+  }
+}
+
+function showHintModal() {
+  const overlay = document.createElement('div');
+  overlay.className = 'hint-overlay';
+  overlay.innerHTML = `
+    <div class="hint-box" onclick="event.stopPropagation()">
+      <div class="hint-eyebrow">classified · site eyes only</div>
+      <div class="hint-title">Easter Eggs</div>
+      <div class="hint-list">
+        <div class="hint-item">
+          <span class="hint-key">triple-click the eyebrow</span>
+          <span class="hint-desc">GPS signal lost. Coordinates drift and corrupt on screen before snapping back.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">type "oops"</span>
+          <span class="hint-desc">Files a fake H&S near-miss incident report, complete with reference number and a deadpan description of events.</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-key">export 3 times</span>
+          <span class="hint-desc">On the third export, a critical warning asks whether you have actually checked your coordinate system.</span>
+        </div>
+      </div>
+      <div class="hint-footer">[ click anywhere to close ]</div>
+    </div>
+  `;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
 let rawText='', parsedRows=[], fileName='';
 
 // ── File input ──
@@ -803,6 +941,7 @@ function doConvert(e, mode) {
       setStatus(`✓ Exported ${keys.length} CSV group files`, 'ok');
     }
   }
+  maybeWrongCRS();
 }
 
 function flashExport() {
@@ -958,47 +1097,169 @@ function setStatus(msg, type) {
   el.className = `status-msg ${type}`;
 }
 
-// ── Konami Code Easter Egg ──
-// ↑ ↑ ↓ ↓ ← → ← → B A
-const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
-let konamiIdx = 0;
-document.addEventListener('keydown', e => {
-  if (e.key === KONAMI[konamiIdx]) {
-    konamiIdx++;
-    if (konamiIdx === KONAMI.length) {
-      konamiIdx = 0;
-      triggerKonami();
-    }
-  } else {
-    konamiIdx = e.key === KONAMI[0] ? 1 : 0;
+// ── Toast factory ──
+function showToast(icon, iconBg, title, sub, duration=2500) {
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className='toast';
+  t.innerHTML=`
+    <div class="toast-icon" style="background:${iconBg};font-size:18px">${icon}</div>
+    <div><div class="toast-title">${title}</div><div class="toast-sub">${sub}</div></div>
+  `;
+  document.body.appendChild(t);
+  setTimeout(()=>{
+    t.style.transition='opacity 0.3s, transform 0.3s';
+    t.style.opacity='0'; t.style.transform='translateY(8px)';
+    setTimeout(()=>t.remove(),320);
+  }, duration);
+}
+
+// ══════════════════════════════════════════════
+// EASTER EGG 1 — GPS DRIFT
+// Triple-click the header eyebrow → coordinates
+// on screen start visibly drifting / corrupting
+// ══════════════════════════════════════════════
+let eyebrowClicks = 0, eyebrowTimer;
+document.querySelector('.header-eyebrow').addEventListener('click', () => {
+  eyebrowClicks++;
+  clearTimeout(eyebrowTimer);
+  eyebrowTimer = setTimeout(() => eyebrowClicks = 0, 900);
+  if (eyebrowClicks >= 3) {
+    eyebrowClicks = 0;
+    triggerGpsDrift();
   }
 });
 
-function triggerKonami() {
+function triggerGpsDrift() {
+  if (!parsedRows.length) {
+    showToast('📡','var(--accent-bg)','No signal','Load a file first. The GPS needs something to lose.', 2800);
+    return;
+  }
+  showToast('📡','#fdf0ef','GPS signal lost','Multipath error detected. Coordinates drifting…', 3500);
+  const preview = document.getElementById('previewScroll');
+  const output  = document.getElementById('outputScroll');
+  const origPrev = preview.innerHTML;
+  const origOut  = output.innerHTML;
+  let tick = 0;
+  const interval = setInterval(() => {
+    tick++;
+    // Corrupt random numbers in the preview text
+    preview.querySelectorAll('.preview-line').forEach(line => {
+      if (Math.random() < 0.3) {
+        line.style.color = `hsl(${Math.random()*30+0},70%,55%)`;
+        line.style.transform = `translateX(${(Math.random()-0.5)*6}px)`;
+      }
+    });
+    output.querySelectorAll('.out-coord').forEach(el => {
+      if (Math.random() < 0.5) {
+        const orig = el.textContent;
+        const num = parseFloat(orig);
+        if (!isNaN(num)) el.textContent = (num + (Math.random()-0.5)*50).toFixed(3);
+      }
+    });
+    if (tick >= 8) {
+      clearInterval(interval);
+      // Snap back with a shake
+      preview.style.animation = 'none';
+      preview.innerHTML = origPrev;
+      output.innerHTML  = origOut;
+      preview.querySelectorAll('.preview-line').forEach(l => { l.style.color=''; l.style.transform=''; });
+      showToast('✅','var(--green-bg)','Signal reacquired','Coordinates restored. Probably fine.', 2500);
+    }
+  }, 280);
+}
+
+// ══════════════════════════════════════════════
+// EASTER EGG 2 — SITE INCIDENT REPORT
+// Type "oops" anywhere → fake H&S near-miss
+// form slides in from the right
+// ══════════════════════════════════════════════
+let oopsBuffer = '';
+document.addEventListener('keypress', e => {
+  if (document.activeElement.tagName === 'INPUT') return;
+  oopsBuffer += e.key.toLowerCase();
+  if (oopsBuffer.length > 6) oopsBuffer = oopsBuffer.slice(-6);
+  if (oopsBuffer.endsWith('oops')) { oopsBuffer = ''; triggerIncidentReport(); }
+});
+
+function triggerIncidentReport() {
+  const existing = document.getElementById('incidentOverlay');
+  if (existing) { existing.remove(); return; }
+  const d = new Date();
+  const dateStr = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
+  const ref = 'NM-' + Math.floor(1000+Math.random()*9000);
   const overlay = document.createElement('div');
-  overlay.className = 'konami-overlay';
+  overlay.id = 'incidentOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(26,23,20,0.7);backdrop-filter:blur(4px);animation:fadeIn 0.25s ease both;cursor:pointer;';
   overlay.innerHTML = `
-    <div class="konami-box" onclick="event.stopPropagation()">
-      <div class="konami-title">You found it.</div>
-      <div class="konami-seq">↑ ↑ ↓ ↓ ← → ← → B A</div>
-      <div class="konami-msg">
-        CONGRATULATIONS, ENGINEER<br><br>
-        YOU HAVE UNLOCKED ABSOLUTELY<br>
-        NOTHING OF PRACTICAL VALUE<br><br>
-        YOUR COORDINATES ARE STILL<br>
-        IN THE DOWNLOADS FOLDER
+    <div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 36px;max-width:460px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.2);animation:slideUp 0.4s var(--ease-spring) both;cursor:default;position:relative;">
+      <div style="font-family:'Martian Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--red);text-transform:uppercase;margin-bottom:4px;">⚠ Near-Miss Report · ${ref}</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--text);margin-bottom:20px;line-height:1.2;">Site Incident<br><em style="color:var(--accent)">Notification</em></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Date</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${dateStr}</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Location</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text)">Converter · Screen</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Category</div>
+          <div style="font-size:12px;font-weight:600;color:var(--red)">Coordinate Error</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
+          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Severity</div>
+          <div style="font-size:12px;font-weight:600;color:var(--amber)">Medium</div>
+        </div>
       </div>
-      <div class="konami-sub">[ click anywhere to close ]</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;">
+        <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Description of Event</div>
+        <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">Operative typed "oops" into the coordinate converter. Immediate near-miss flagged. No coordinates were harmed. The SCR script has been placed in a safe location pending investigation. A toolbox talk has been scheduled.</div>
+      </div>
+      <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.08em;display:flex;justify-content:space-between;align-items:center;">
+        <span>Reported by: D. Rose · Site Engineer</span>
+        <span style="color:var(--accent);cursor:pointer;" onclick="document.getElementById('incidentOverlay').remove()">[ dismiss ]</span>
+      </div>
     </div>
   `;
-  overlay.addEventListener('click', () => {
-    overlay.style.animation = 'none';
-    overlay.style.opacity = '0';
-    overlay.style.transition = 'opacity 0.2s';
-    setTimeout(() => overlay.remove(), 220);
-  });
+  overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
 }
+
+// ══════════════════════════════════════════════
+// EASTER EGG 3 — WRONG COORDINATE SYSTEM
+// After exporting a file, wait 4 seconds then
+// show a "critical" alert that the coordinate
+// system might be completely wrong
+// ══════════════════════════════════════════════
+let exportCount = 0;
+function maybeWrongCRS() {
+  exportCount++;
+  if (exportCount !== 3) return; // fires on 3rd export
+  exportCount = 0;
+  setTimeout(() => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(192,57,43,0.15);backdrop-filter:blur(2px);animation:fadeIn 0.3s ease both;cursor:pointer;';
+    overlay.innerHTML = `
+      <div onclick="event.stopPropagation()" style="background:var(--surface);border:2px solid var(--red);border-radius:16px;padding:32px 36px;max-width:420px;width:90%;box-shadow:0 0 0 6px rgba(192,57,43,0.08),0 24px 60px rgba(0,0,0,0.2);animation:scaleIn 0.4s var(--ease-spring) both;cursor:default;text-align:center;">
+        <div style="font-size:36px;margin-bottom:12px;">🌍</div>
+        <div style="font-family:'Martian Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Critical Warning</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--text);margin-bottom:14px;line-height:1.3;">Are you in the right<br><em style="color:var(--red)">coordinate system?</em></div>
+        <div style="font-family:'Martian Mono',monospace;font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:20px;">Your file has been exported.<br>But is it OSGB36? BNG? WGS84?<br>ITM? Local grid? Site datum?<br><br>Nobody knows. Least of all AutoCAD.</div>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button onclick="document.querySelector('[data-crs-overlay]').remove()" style="font-family:'Martian Mono',monospace;font-size:10px;padding:8px 16px;border-radius:100px;border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer;letter-spacing:0.08em;" onclick="this.closest('[style]').parentElement.remove()">Yes, I checked ✓</button>
+          <button style="font-family:'Martian Mono',monospace;font-size:10px;padding:8px 16px;border-radius:100px;border:1px solid var(--red);background:var(--red-bg,#fdf0ef);color:var(--red);cursor:pointer;letter-spacing:0.08em;" onclick="this.closest('div').closest('div').parentElement.remove()">I have not checked</button>
+        </div>
+        <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);margin-top:16px;letter-spacing:0.06em;">[ click anywhere to dismiss and panic quietly ]</div>
+      </div>
+    `;
+    overlay.addEventListener('click', ()=>overlay.remove());
+    document.body.appendChild(overlay);
+  }, 1800);
+}
+
+// maybeWrongCRS() called directly from doConvert on export
 
 function parseCSV(line) {
   const out = []; let cur = '', inQ = false;
