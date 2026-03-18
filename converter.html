@@ -870,7 +870,7 @@ function showPasteBanner(msg) {
 
 function loadFile(file) {
   fileName = file.name;
-  // Show skeleton loading state
+  document.getElementById('outputScroll').innerHTML = '<span class="out-dim">// parsing…</span>';
   showSkeleton();
   const r = new FileReader();
   r.onload = evt => {
@@ -1021,7 +1021,10 @@ function getGroups() {
 }
 
 function renderOutputPreview() {
-  if (!parsedRows.length) return;
+  if (!parsedRows.length) {
+    document.getElementById('outputScroll').innerHTML = '<span class="out-dim">// no valid points — check column mapping</span>';
+    return;
+  }
   const fmt = document.getElementById('outputFormat').value;
   const groups = getGroups();
   const keys = Object.keys(groups);
@@ -1032,20 +1035,23 @@ function renderOutputPreview() {
   const delay = i => `animation-delay:${i * 16}ms`;
 
   if (isMultiGroup) {
-    keys.slice(0, 4).forEach((key) => {
-      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">LAYER N ${key}</span>`;
+    keys.slice(0, 4).forEach((key, gi) => {
+      const color = ACI[gi % ACI.length];
+      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">LAYER N ${key} COLOR ${color.num} ${key}</span>`;
+      html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
     });
     if (keys.length > 4) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">… ${keys.length - 4} more layers</span>`;
-    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
     keys.slice(0, 4).forEach((key, gi) => {
       const color = ACI[gi % ACI.length];
       html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CLAYER ${key}</span>`;
-      html += `<span class="out-line" style="color:${color.hex};font-weight:600;${delay(lineIdx++)}">CECOLOR ${color.num}</span>`;
       groups[key].slice(0, 3).forEach(r => {
         html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${'_POINT'} ${r.x},${r.y},${r.z}</span>`;
       });
       if (groups[key].length > 3) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">  … ${groups[key].length - 3} more in ${key}</span>`;
     });
+    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CLAYER 0</span>`;
+    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">PDMODE 3</span>`;
+    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">PDSIZE 0.25</span>`;
     html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">ZOOM E</span>`;
   } else if (fmt === 'scr') {
     html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">_MULTIPLE _POINT</span>`;
@@ -1196,18 +1202,18 @@ function buildSingleContent(rows, fmt) {
 function buildColorScript(groups) {
   const keys = Object.keys(groups);
   let script = '';
-  // Create all layers first; then CLAYER switches current layer per group
-  // (multi-group format inferred from single-layer test.scr — verify in AutoCAD)
-  keys.forEach(key => {
-    script += `LAYER N ${key}\n\n`;
-  });
+  // Create layers with colour assigned inline
   keys.forEach((key, idx) => {
     const color = ACI[idx % ACI.length];
+    script += `LAYER N ${key} COLOR ${color.num} ${key}\n\n`;
+  });
+  // Plot each group, switching layer with CLAYER
+  keys.forEach(key => {
     script += `CLAYER ${key}\n`;
-    script += `CECOLOR ${color.num}\n`;
     groups[key].forEach(r => { script += `_POINT ${r.x},${r.y},${r.z}\n`; });
   });
-  script += `ZOOM E\n`;
+  // Footer
+  script += `CLAYER 0\nPDMODE 3\nPDSIZE 0.25\nZOOM E\n`;
   return script;
 }
 function download(content, filename) {
@@ -1450,3 +1456,4 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 </script>
 </body>
 </html>
+
