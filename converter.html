@@ -450,6 +450,46 @@ code {
 .konami-sub { font-size:10px;color:#2e5c40;margin-top:20px;letter-spacing:0.08em; }
 
 @media (max-width:720px) { .grid { grid-template-columns:1fr; } .action-row { flex-direction:column; } }
+
+/* ── Paste warning banner ── */
+.paste-banner {
+  display:flex; align-items:flex-start; gap:12px;
+  background:#fffbf0; border:1px solid #e8c84a; border-radius:var(--radius-sm);
+  padding:12px 14px; margin-bottom:4px;
+  animation: slideUp 0.35s var(--ease-spring) both;
+}
+body.dark-mode .paste-banner { background:#1e1a08; border-color:#6b5a10; }
+.paste-banner-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+.paste-banner-body { display:flex; flex-direction:column; gap:3px; }
+.paste-banner-title { font-size:12.5px; font-weight:600; color:#7a5c00; }
+body.dark-mode .paste-banner-title { color:#d4a820; }
+.paste-banner-sub { font-family:'Martian Mono',monospace; font-size:10px; color:#a07a20; letter-spacing:0.04em; line-height:1.5; }
+body.dark-mode .paste-banner-sub { color:#8a7030; }
+.paste-banner-close { margin-left:auto; flex-shrink:0; background:none; border:none; cursor:pointer; color:#a07a20; font-size:16px; line-height:1; padding:0 2px; }
+
+/* ── Replace modal ── */
+.replace-overlay {
+  position:fixed; inset:0; z-index:8000; display:flex; align-items:center; justify-content:center;
+  background:rgba(26,23,20,0.6); backdrop-filter:blur(3px);
+  animation:fadeIn 0.2s ease both;
+}
+.replace-box {
+  background:var(--surface); border:1px solid var(--border); border-radius:16px;
+  padding:28px 32px; max-width:380px; width:90%;
+  box-shadow:var(--shadow); animation:scaleIn 0.3s var(--ease-spring) both;
+}
+.replace-title { font-family:'DM Serif Display',serif; font-size:22px; color:var(--text); margin-bottom:6px; }
+.replace-sub { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
+.replace-btns { display:flex; gap:10px; }
+.replace-btns button {
+  flex:1; height:38px; border-radius:var(--radius-sm); font-family:'Instrument Sans',sans-serif;
+  font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border);
+  transition: all 0.15s;
+}
+.replace-btn-yes { background:var(--accent); color:#fff; border-color:var(--accent) !important; }
+.replace-btn-yes:hover { background:#b55728; }
+.replace-btn-no  { background:var(--surface2); color:var(--text2); }
+.replace-btn-no:hover  { background:var(--surface); border-color:var(--border2); }
 </style>
 </head>
 <body>
@@ -487,7 +527,7 @@ code {
           </svg>
         </div>
         <div class="drop-label" id="dropLabel">Drop your GPS file here</div>
-        <div class="drop-sub" id="dropSub">or click to browse — .csv, .txt, all files</div>
+        <div class="drop-sub" id="dropSub">or click to browse — .csv, .txt — or paste from Excel</div>
         <div class="drop-filename" id="dropFilename" style="display:none"></div>
       </div>
       <input type="file" id="fileInput" accept=".csv,.txt,*">
@@ -570,11 +610,11 @@ code {
             </div>
           </div>
           <div class="field">
-            <div class="field-label">Column mapping <span style="font-weight:400;color:var(--text3)">(0-indexed)</span></div>
+            <div class="field-label">Column mapping <span style="font-weight:400;color:var(--text3)">(1-indexed)</span></div>
             <div class="field-row">
-              <input type="number" id="colX" value="1" min="0" placeholder="X">
-              <input type="number" id="colY" value="2" min="0" placeholder="Y">
-              <input type="number" id="colZ" value="3" min="0" placeholder="Z">
+              <input type="number" id="colX" value="2" min="1" placeholder="X">
+              <input type="number" id="colY" value="3" min="1" placeholder="Y">
+              <input type="number" id="colZ" value="4" min="1" placeholder="Z">
             </div>
             <div class="col-labels">
               <span>X / Easting</span><span>Y / Northing</span><span>Z / Elevation</span>
@@ -608,7 +648,7 @@ code {
         <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
           <div class="how-step"><div class="step-num">1</div><div class="step-text">Drop or browse your GPS / total station export file (.csv or .txt)</div></div>
           <div class="how-step"><div class="step-num">2</div><div class="step-text">Adjust header rows and column mapping to match your file structure</div></div>
-          <div class="how-step"><div class="step-num">3</div><div class="step-text">Export as a single file, export by layers coming soon...</div></div>
+          <div class="how-step"><div class="step-num">3</div><div class="step-text">Export as a single file, or export into layers — one AutoCAD layer per point group</div></div>
           <div class="how-step"><div class="step-num">4</div><div class="step-text">In AutoCAD, run the .scr using the "<code>SCR</code>" command</div></div>
         </div>
       </div>
@@ -697,6 +737,137 @@ zone.addEventListener('drop', e => {
   if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
 });
 
+// ── Paste from Excel ──
+document.addEventListener('paste', e => {
+  const tag = document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+  const text = e.clipboardData.getData('text/plain');
+  if (!text || !text.trim()) return;
+  e.preventDefault();
+  if (rawText) {
+    showReplaceModal(text);
+  } else {
+    loadPastedData(text);
+  }
+});
+
+function showReplaceModal(pendingText) {
+  const overlay = document.createElement('div');
+  overlay.className = 'replace-overlay';
+  overlay.innerHTML = `
+    <div class="replace-box" onclick="event.stopPropagation()">
+      <div class="replace-title">Replace loaded data?</div>
+      <div class="replace-sub">You already have a file loaded. Do you want to replace it with the pasted data?</div>
+      <div class="replace-btns">
+        <button class="replace-btn-yes" id="replaceYes">Replace</button>
+        <button class="replace-btn-no"  id="replaceNo">Keep file</button>
+      </div>
+    </div>
+  `;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+  document.getElementById('replaceYes').onclick = () => { overlay.remove(); loadPastedData(pendingText); };
+  document.getElementById('replaceNo').onclick  = () => overlay.remove();
+}
+
+function detectHeaders(firstRow) {
+  // Returns { colX, colY, colZ } as 1-indexed, or null if not detected
+  const xKeys = ['easting','east','e','x','grid_e','x(m)','e(m)'];
+  const yKeys = ['northing','north','n','y','grid_n','y(m)','n(m)'];
+  const zKeys = ['height','elevation','elev','h','z','rl','level','z(m)','h(m)'];
+  const headers = firstRow.map(h => h.toLowerCase().trim());
+  const xi = headers.findIndex(h => xKeys.includes(h));
+  const yi = headers.findIndex(h => yKeys.includes(h));
+  const zi = headers.findIndex(h => zKeys.includes(h));
+  if (xi === -1 || yi === -1 || zi === -1) return null;
+  return { colX: xi + 1, colY: yi + 1, colZ: zi + 1 };
+}
+
+function loadPastedData(text) {
+  // Excel pastes as tab-separated
+  const isTabSep = text.includes('\t');
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  if (!lines.length) return;
+
+  // Convert tabs to commas so existing CSV parser works
+  const converted = isTabSep
+    ? lines.map(l => l.split('\t').map(c => c.trim()).join(',')).join('\n')
+    : text.trim();
+
+  // Try to detect headers from first row
+  const firstRow = isTabSep
+    ? lines[0].split('\t').map(c => c.trim())
+    : lines[0].split(',').map(c => c.trim());
+
+  const firstRowIsNumeric = firstRow.slice(1, 4).every(v => !isNaN(parseFloat(v)));
+  let detected = null;
+  let bannerMsg = '';
+
+  if (!firstRowIsNumeric) {
+    // First row looks like headers — try to match
+    detected = detectHeaders(firstRow);
+    if (detected) {
+      document.getElementById('headerRows').value = 1;
+      document.getElementById('colX').value = detected.colX;
+      document.getElementById('colY').value = detected.colY;
+      document.getElementById('colZ').value = detected.colZ;
+      bannerMsg = `Headers detected — X=col ${detected.colX}, Y=col ${detected.colY}, Z=col ${detected.colZ}. Please verify before exporting.`;
+    } else {
+      document.getElementById('headerRows').value = 1;
+      document.getElementById('colX').value = 1;
+      document.getElementById('colY').value = 2;
+      document.getElementById('colZ').value = 3;
+      bannerMsg = `Headers found but column names weren't recognised. Defaulted to columns 1, 2, 3 with 1 header row skipped. Please check the mapping before exporting.`;
+    }
+  } else {
+    document.getElementById('headerRows').value = 0;
+    document.getElementById('colX').value = 2;
+    document.getElementById('colY').value = 3;
+    document.getElementById('colZ').value = 4;
+    bannerMsg = `No headers detected — defaulted to columns 2, 3, 4. Please verify the column mapping matches your data before exporting.`;
+  }
+
+  fileName = 'pasted-data.csv';
+  rawText = converted;
+
+  // Fake a file object for renderDropLoaded
+  renderDropLoadedPaste(lines.length);
+  renderPreview(rawText);
+  parseAndStats();
+  showPasteBanner(bannerMsg);
+}
+
+function renderDropLoadedPaste(lineCount) {
+  zone.classList.add('has-file');
+  document.getElementById('dropIconSvg').innerHTML = `
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <polyline class="check-path" points="8 12 11 15 16 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  `;
+  const fn = document.getElementById('dropFilename');
+  fn.textContent = `Pasted data — ${lineCount} rows`;
+  fn.style.display = 'block';
+  document.getElementById('dropLabel').textContent = 'Pasted from clipboard — click to replace';
+  document.getElementById('dropSub').style.display = 'none';
+}
+
+function showPasteBanner(msg) {
+  document.getElementById('pasteBanner')?.remove();
+  const banner = document.createElement('div');
+  banner.id = 'pasteBanner';
+  banner.className = 'paste-banner';
+  banner.innerHTML = `
+    <div class="paste-banner-icon">⚠</div>
+    <div class="paste-banner-body">
+      <div class="paste-banner-title">Check your column mapping</div>
+      <div class="paste-banner-sub">${msg}</div>
+    </div>
+    <button class="paste-banner-close" onclick="document.getElementById('pasteBanner').remove()">×</button>
+  `;
+  // Insert it above the action buttons
+  const actionsDiv = document.querySelector('.action-row').parentElement;
+  actionsDiv.insertBefore(banner, actionsDiv.firstChild);
+}
+
 function loadFile(file) {
   fileName = file.name;
   // Show skeleton loading state
@@ -769,9 +940,9 @@ function renderPreview(text) {
 
 function parseAndStats() {
   const skip = parseInt(document.getElementById('headerRows').value) || 0;
-  const cx   = parseInt(document.getElementById('colX').value);
-  const cy   = parseInt(document.getElementById('colY').value);
-  const cz   = parseInt(document.getElementById('colZ').value);
+  const cx   = (parseInt(document.getElementById('colX').value) || 1) - 1;
+  const cy   = (parseInt(document.getElementById('colY').value) || 1) - 1;
+  const cz   = (parseInt(document.getElementById('colZ').value) || 1) - 1;
   const lines = rawText.split('\n');
   const dataLines = lines.slice(skip);
   parsedRows = [];
@@ -793,7 +964,7 @@ function parseAndStats() {
   renderOutputPreview();
   const ok = pts > 0;
   document.getElementById('btnSingle').disabled = !ok;
-  // btnMulti permanently disabled
+  document.getElementById('btnMulti').disabled  = !ok;
   setStatus(ok
     ? `✓ ${pts} valid point${pts !== 1 ? 's' : ''} ready to export`
     : '⚠ No valid points found — check column mapping',
@@ -861,20 +1032,21 @@ function renderOutputPreview() {
   const delay = i => `animation-delay:${i * 16}ms`;
 
   if (isMultiGroup) {
+    keys.slice(0, 4).forEach((key) => {
+      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">LAYER N ${key}</span>`;
+    });
+    if (keys.length > 4) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">… ${keys.length - 4} more layers</span>`;
+    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
     keys.slice(0, 4).forEach((key, gi) => {
       const color = ACI[gi % ACI.length];
-      html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">; Group: ${key} — ${color.name} (ACI ${color.num})</span>`;
-      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CECOLOR</span>`;
-      html += `<span class="out-line" style="color:${color.hex};font-weight:600;${delay(lineIdx++)}">${color.num}</span>`;
-      html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
-      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">_MULTIPLE _POINT</span>`;
-      groups[key].slice(0, 4).forEach(r => {
-        html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${r.x},${r.y},${r.z}</span>`;
+      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CLAYER ${key}</span>`;
+      html += `<span class="out-line" style="color:${color.hex};font-weight:600;${delay(lineIdx++)}">CECOLOR ${color.num}</span>`;
+      groups[key].slice(0, 3).forEach(r => {
+        html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${'_POINT'} ${r.x},${r.y},${r.z}</span>`;
       });
-      if (groups[key].length > 4) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">  … ${groups[key].length - 4} more in ${key}</span>`;
-      html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
+      if (groups[key].length > 3) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">  … ${groups[key].length - 3} more in ${key}</span>`;
     });
-    if (keys.length > 4) html += `<span class="out-line out-dim" style="${delay(lineIdx)}">… ${keys.length - 4} more groups</span>`;
+    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">ZOOM E</span>`;
   } else if (fmt === 'scr') {
     html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">_MULTIPLE _POINT</span>`;
     parsedRows.slice(0, 30).forEach(r => {
@@ -1017,22 +1189,25 @@ function addRipple(e) {
 }
 
 function buildSingleContent(rows, fmt) {
-  if (fmt === 'scr') return '_MULTIPLE _POINT\n' + rows.map(r => `${r.x},${r.y},${r.z}`).join('\n') + '\n';
+  if (fmt === 'scr') return '_MULTIPLE _POINT\n' + rows.map(r => `${r.x},${r.y},${r.z}`).join('\n') + '\nZOOM E\n';
   return 'name,x,y,z\n' + rows.map(r => `${r.name},${r.x},${r.y},${r.z}`).join('\n');
 }
 
 function buildColorScript(groups) {
   const keys = Object.keys(groups);
   let script = '';
+  // Create all layers first; then CLAYER switches current layer per group
+  // (multi-group format inferred from single-layer test.scr — verify in AutoCAD)
+  keys.forEach(key => {
+    script += `LAYER N ${key}\n\n`;
+  });
   keys.forEach((key, idx) => {
     const color = ACI[idx % ACI.length];
-    script += `; Group: ${key} — ${color.name} (ACI ${color.num})\n`;
-    script += `CECOLOR\n${color.num}\n\n`;
-    script += `_MULTIPLE _POINT\n`;
-    groups[key].forEach(r => { script += `${r.x},${r.y},${r.z}\n`; });
-    script += `\n`;
+    script += `CLAYER ${key}\n`;
+    script += `CECOLOR ${color.num}\n`;
+    groups[key].forEach(r => { script += `_POINT ${r.x},${r.y},${r.z}\n`; });
   });
-  script += `CECOLOR\nBYLAYER\n`;
+  script += `ZOOM E\n`;
   return script;
 }
 function download(content, filename) {
@@ -1046,8 +1221,9 @@ function clearAll() {
   zone.classList.remove('has-file');
   document.getElementById('dropFilename').style.display = 'none';
   document.getElementById('dropLabel').textContent = 'Drop your GPS file here';
-  document.getElementById('dropSub').textContent   = 'or click to browse — .csv, .txt, all files';
+  document.getElementById('dropSub').textContent   = 'or click to browse — .csv, .txt — or paste from Excel';
   document.getElementById('dropSub').style.display = '';
+  document.getElementById('pasteBanner')?.remove();
   // Restore upload icon
   document.getElementById('dropIconSvg').innerHTML = `
     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -1274,4 +1450,3 @@ function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>
 </script>
 </body>
 </html>
-
