@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concrete Curing Calculator — Site Engineers Toolbox</title>
+<meta name="description" content="Eurocode 2 maturity strength calculator with ASTM C1074 Arrhenius equivalent age, CIRIA C660 thermal modelling, and BS EN 206 conformity checks.">
+<link rel="icon" type="image/x-icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,600;0,800;1,600;1,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+<style>
+  :root { --page-accent:#4A1E5C; --page-accent-bg:#EDE0F5; --page-tint:#F5EEDD; }
+
+  /* Full width for charts */
+  .app { max-width:1280px; }
+
+  /* Plum stat accents — override the default lavender/peach/sea rotation */
+  .stat:nth-child(3n+1) { background:var(--page-accent-bg); }
+  .stat:nth-child(3n+2) { background:var(--cream); }
+  .stat:nth-child(3n+3) { background:var(--lavender); }
+  .stat-val.has-data    { color:var(--plum); }
+
+  /* Calculate button — plum fill so it pops */
+  #btnCalculate {
+    background:var(--plum); color:var(--paper);
+    box-shadow:4px 4px 0 var(--ink);
+  }
+  #btnCalculate:hover:not(:disabled) {
+    box-shadow:6px 6px 0 var(--ink);
+    background:#5c2470;
+  }
+
+  /* Chart cards: full chart padding */
+  .chart-pad { padding:20px; }
+
+  /* Bento watermark on the main chart card */
+  .chart-card-main { position:relative; overflow:hidden; }
+  .chart-card-main::after {
+    content:'C40';
+    position:absolute; bottom:-28px; right:-8px;
+    font-family:'Fraunces',serif; font-style:italic; font-weight:800;
+    font-size:160px; line-height:0.8; letter-spacing:-0.06em;
+    color:var(--ink); opacity:0.04;
+    pointer-events:none; z-index:0; user-select:none;
+  }
+
+  /* h1 em stays plum via --page-accent, but hivis underline is good */
+
+  /* History toggle — plum accent on hover rather than hivis for variety */
+  .history-toggle:hover { background:var(--page-accent-bg); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ HEADER ══ -->
+  <header>
+    <div class="header-left">
+      <div class="header-eyebrow">Eurocode 2 · ASTM C1074 · CIRIA C660</div>
+      <h1>Concrete Curing<br><em>Calculator</em></h1>
+    </div>
+    <div class="header-right">
+      <div class="badge" onclick="document.getElementById('btnCalculate').click()">Calculate</div>
+      <a href="index.html" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Toolbox
+      </a>
+    </div>
+  </header>
+
+  <!-- ══ STRIP 1 — Pour Details (2/3) + Mix & Formwork (1/3) ══ -->
+  <div class="input-strip">
+
+    <div class="card span2">
+      <div class="card-header">
+        <span class="card-title">Pour Details</span>
+        <span class="card-meta">EC2 §3.1.2</span>
+      </div>
+      <div class="settings-body">
+        <div class="field-row">
+          <div class="field" style="flex:1.2">
+            <div class="field-label">Pour Date</div>
+            <input type="date" id="pourDate" required>
+          </div>
+          <div class="field" style="flex:0.8">
+            <div class="field-label">Pour Time</div>
+            <input type="time" id="pourTime" value="08:00" required>
+          </div>
+          <div class="field" style="flex:0.8">
+            <div class="field-label">Analysis Period</div>
+            <select id="analysisPeriod">
+              <option value="28">28 days</option>
+              <option value="56" selected>56 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field" style="flex:1.5">
+            <div class="field-label">Concrete Class / Type</div>
+            <select id="concreteType" onchange="toggleCustomFck()">
+              <optgroup label="Reinforced Concrete (BS EN 206)">
+                <option value="RC20">RC20/25</option>
+                <option value="RC25">RC25/30</option>
+                <option value="RC28">RC28/35</option>
+                <option value="RC32">RC32/40</option>
+                <option value="RC35">RC35/45</option>
+                <option value="RC40">RC40/50</option>
+              </optgroup>
+              <optgroup label="General Concrete (BS 8500-2)">
+                <option value="GEN0">GEN0 — 8 MPa</option>
+                <option value="GEN1">GEN1 — 12 MPa</option>
+                <option value="GEN2" selected>GEN2 — 16 MPa</option>
+                <option value="GEN3">GEN3 — 20 MPa</option>
+              </optgroup>
+              <optgroup label="Standardised Prescribed">
+                <option value="ST1">ST1 — 8 MPa</option>
+                <option value="ST2">ST2 — 12 MPa</option>
+                <option value="ST3">ST3 — 16 MPa</option>
+                <option value="ST4">ST4 — 20 MPa</option>
+                <option value="ST5">ST5 — 25 MPa</option>
+              </optgroup>
+              <optgroup label="Paving Concrete">
+                <option value="PAV1">PAV1 — 30 MPa</option>
+                <option value="PAV2">PAV2 — 35 MPa</option>
+              </optgroup>
+              <optgroup label="Foundation Concrete">
+                <option value="FND2">FND2 — 25 MPa</option>
+                <option value="FND3">FND3 — 35 MPa</option>
+                <option value="FND4">FND4 — 40 MPa</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="custom">Proprietary / Custom fck</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field" style="flex:1">
+            <div class="field-label">Cement Class (s)</div>
+            <select id="cementClass">
+              <option value="0.20">Class R — Rapid (0.20)</option>
+              <option value="0.25" selected>Class N — Normal (0.25)</option>
+              <option value="0.38">Class S — Slow (0.38)</option>
+            </select>
+          </div>
+          <div class="field" style="flex:0.8">
+            <div class="field-label">Humidity (%)</div>
+            <input type="number" id="humidityInput" value="70" min="0" max="100">
+          </div>
+        </div>
+        <div class="field" id="customFckDiv" style="display:none;">
+          <div class="field-label">Custom f<sub>ck</sub> (N/mm²)</div>
+          <input type="number" id="fck" value="30" min="10" max="100">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Mix &amp; Formwork</span>
+        <span class="card-meta">CIRIA C660</span>
+      </div>
+      <div class="settings-body">
+        <div class="field-row">
+          <div class="field" style="flex:1">
+            <div class="field-label">Pour Thickness</div>
+            <div class="input-with-unit">
+              <input type="number" id="pourThickness" value="300" min="50" max="3000">
+              <div class="field-unit">mm</div>
+            </div>
+          </div>
+          <div class="field" style="flex:1">
+            <div class="field-label">Cement Content</div>
+            <div class="input-with-unit">
+              <input type="number" id="cementContent" value="350" min="200" max="600">
+              <div class="field-unit">kg/m³</div>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label">Formwork Type</div>
+          <select id="formworkType">
+            <option value="1.0">Steel — High heat loss</option>
+            <option value="1.5" selected>Timber — Normal</option>
+            <option value="2.5">Insulated — Retains heat</option>
+          </select>
+        </div>
+        <div class="engineering-note">
+          ΔT<sub>peak</sub> = f(cement, section, formwork).<br>
+          Peak hydration hour: R=12h · N=28h · S=48h.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /strip 1 -->
+
+  <!-- ══ STRIP 2 — Temperature Source · Cube Crushes · Milestones ══ -->
+  <div class="input-strip" style="grid-template-columns:260px 1fr 1fr;">
+
+    <!-- Temperature Source -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Temperature Source</span>
+        <span class="card-meta">API or manual</span>
+      </div>
+      <div class="settings-body" style="gap:10px;">
+        <div class="loc-mode-toggle">
+          <button class="loc-mode-btn active" data-mode="api"    onclick="setLocMode('api')">🌐 Weather API</button>
+          <button class="loc-mode-btn"        data-mode="manual" onclick="setLocMode('manual')">🌡 Manual</button>
+        </div>
+
+        <div id="apiLocPanel">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button class="loc-btn" onclick="getLocation()" id="btnLocate">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+              </svg>
+              Use My Location
+            </button>
+            <div class="field-row">
+              <div class="field" style="flex:1">
+                <input type="number" id="lat" placeholder="Lat (e.g. 51.5)" step="0.0001">
+              </div>
+              <div class="field" style="flex:1">
+                <input type="number" id="lon" placeholder="Lon (e.g. −0.1)" step="0.0001">
+              </div>
+            </div>
+            <div class="loc-display" id="locDisplay">Waiting for coordinates…</div>
+          </div>
+        </div>
+
+        <div id="manualTempPanel" style="display:none;">
+          <div class="field">
+            <div class="field-label">Ambient Temperature</div>
+            <div class="input-with-unit">
+              <input type="number" id="manualTemp" value="15" min="-20" max="60" step="0.5">
+              <div class="field-unit">°C</div>
+            </div>
+          </div>
+          <div class="engineering-note">
+            Constant ambient temp for the full period — heat-of-hydration model still applies.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cube Crushes -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Actual Cube Crushes</span>
+        <span class="card-meta">BS EN 206 §8.3</span>
+      </div>
+      <div class="settings-body" id="crushList" style="gap:8px;">
+        <div class="col-labels" style="margin-bottom:2px;">
+          <span>Age (Days)</span>
+          <span>Strength (N/mm²)</span>
+          <span style="flex:0 0 38px;"></span>
+        </div>
+        <div class="crush-row">
+          <input type="number" class="crush-day" placeholder="e.g. 7"  min="1" value="7">
+          <input type="number" class="crush-str" placeholder="e.g. 21" min="0">
+          <button class="remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>
+        </div>
+        <div class="crush-row">
+          <input type="number" class="crush-day" placeholder="e.g. 28" min="1" value="28">
+          <input type="number" class="crush-str" placeholder="e.g. 32" min="0">
+          <button class="remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>
+        </div>
+        <button class="add-crush-btn" onclick="addCrushRow()">+ Add Test Result</button>
+      </div>
+    </div>
+
+    <!-- Target Milestones -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Target Milestones</span>
+        <span class="card-meta">Strike calc. auto-added</span>
+      </div>
+      <div class="settings-body" id="milestoneList" style="gap:8px;">
+        <div class="col-labels" style="margin-bottom:2px;">
+          <span>Target (N/mm²)</span>
+          <span style="flex:0 0 38px;"></span>
+        </div>
+        <div class="crush-row milestone-row">
+          <input type="number" class="mile-str" placeholder="e.g. 15" min="1" value="15">
+          <button class="remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>
+        </div>
+        <div class="crush-row milestone-row">
+          <input type="number" class="mile-str" placeholder="e.g. 25" min="1" value="25">
+          <button class="remove-btn" onclick="this.parentElement.remove()" title="Remove">✕</button>
+        </div>
+        <button class="add-crush-btn" onclick="addMilestoneRow()">+ Add Milestone</button>
+      </div>
+    </div>
+
+  </div><!-- /strip 2 -->
+
+  <!-- ══ ACTION BAR ══ -->
+  <div class="calc-bar">
+    <button class="btn btn-primary" id="btnCalculate" onclick="calculateStrength()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      Calculate &amp; Graph
+    </button>
+    <button class="save-pour-btn" onclick="savePour()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save Pour
+    </button>
+    <div class="fetching-status" id="weatherStatus">
+      <div class="fetching-dot"></div>
+      <span>Fetching weather from Open-Meteo…</span>
+    </div>
+    <div class="status-wrap" style="margin-top:0;padding:0;">
+      <div class="status-msg" id="statusMsg"></div>
+    </div>
+  </div>
+
+  <!-- ══ CHARTS AREA ══ -->
+  <div class="charts-area">
+
+    <!-- Strength curve -->
+    <div class="card chart-card-main">
+      <div class="card-header">
+        <span class="card-title">Strength Development — f<sub>cm</sub>(t) vs Actuals</span>
+        <span class="card-meta">EC2 β<sub>cc</sub> · Arrhenius equivalent age</span>
+      </div>
+      <div class="chart-pad">
+        <div class="chart-main"><canvas id="strengthChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Temperature + Maturity side by side -->
+    <div class="chart-row" id="extraChartsCard" style="display:none;">
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Internal Temperature Profile</span>
+          <span class="card-meta">CIRIA C660 heat model</span>
+        </div>
+        <div class="chart-pad">
+          <div class="chart-secondary"><canvas id="tempChart"></canvas></div>
+          <p class="param-desc">Core temperature rise from heat of hydration. Peak governed by cement content, section thickness, and formwork. ΔT<sub>core–surface</sub> drives thermal crack risk.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Maturity Index — Arrhenius Equivalent Age</span>
+          <span class="card-meta">ASTM C1074 · E<sub>a</sub>/R = 5000 K</span>
+        </div>
+        <div class="chart-pad">
+          <div class="chart-secondary"><canvas id="maturityChart"></canvas></div>
+          <p class="param-desc">t<sub>e</sub> = Σ exp(E<sub>a</sub>/R · (1/T<sub>ref</sub> − 1/T<sub>core</sub>)) · Δt. Divergence from the 1:1 diagonal shows temperature-driven acceleration or deceleration of curing.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Analysis summary -->
+    <div class="card" id="resultsCard" style="display:none;">
+      <div class="card-header">
+        <span class="card-title">Analysis Summary</span>
+        <span class="card-meta">BS EN 206 conformity · CIRIA C660 crack risk</span>
+      </div>
+      <div style="padding:20px;">
+        <div class="stats-grid" id="statsGrid"></div>
+        <p class="param-desc" style="margin-top:14px;">
+          f<sub>cm</sub>(t) = β<sub>cc</sub>(t) · f<sub>cm,28</sub> per EC2 §3.1.2 where f<sub>cm,28</sub> = f<sub>ck</sub> + 8 MPa (EC2 Table 3.1).
+          BS EN 206 conformity: mean ≥ f<sub>ck</sub> + 4 MPa &amp; every result ≥ f<sub>ck</sub> − 4 MPa (criterion A).
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /charts-area -->
+
+  <!-- ══ POUR HISTORY ══ -->
+  <div class="history-section" id="historySection">
+    <div class="history-toggle" onclick="toggleHistory()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <span class="history-toggle-label">Pour History</span>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink);opacity:.5;margin-left:6px;" id="historyCount"></span>
+      <svg class="history-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+    <div class="history-grid" id="pourHistoryList">
+      <div class="history-empty" id="pourHistoryEmpty">No saved pours yet — fill in the form and click "Save Pour".</div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script src="common.js"></script>
+<script src="concrete.js"></script>
+<script>
+  function toggleHistory() {
+    document.getElementById('historySection').classList.toggle('open');
+  }
+</script>
+</body>
+</html>

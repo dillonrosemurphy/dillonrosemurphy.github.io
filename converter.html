@@ -1,536 +1,106 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GPS to AutoCAD Converter</title>
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@300;400&display=swap" rel="stylesheet">
+<title>GPS → AutoCAD Converter — Site Engineers Toolbox</title>
+<link rel="icon" type="image/x-icon" href="../favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:ital,wght@0,600;0,800;1,600;1,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --page-accent:#2A3FE0; --page-accent-bg:#E8EBFE; --page-tint:#F5EEDD; }
 
-:root {
-  --bg:#f5f2ee; --surface:#ffffff; --surface2:#faf9f7;
-  --border:#e4ddd5; --border2:#d4cdc4;
-  --text:#1a1714; --text2:#6b6259; --text3:#a59d94;
-  --accent:#c9622f; --accent-bg:#fdf1eb; --accent-border:#f0c5ae;
-  --green:#2e7d55; --green-bg:#edf7f2; --red:#c0392b;
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
-  --shadow:0 4px 16px rgba(0,0,0,0.07),0 1px 4px rgba(0,0,0,0.05);
-  --radius:10px; --radius-sm:6px;
-  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
-  --ease-out: cubic-bezier(0.16,1,0.3,1);
-}
+  /* drop zone keyframes */
+  @keyframes drop-pulse    { 0%,100%{box-shadow:0 0 0 0 rgba(42,63,224,0);} 50%{box-shadow:0 0 0 8px rgba(42,63,224,0.08);} }
+  @keyframes success-pulse { 0%{box-shadow:0 0 0 0 rgba(31,200,169,0.4);} 70%{box-shadow:0 0 0 14px rgba(31,200,169,0);} 100%{box-shadow:0 0 0 0 rgba(31,200,169,0);} }
+  @keyframes check-draw    { from{stroke-dashoffset:30;} to{stroke-dashoffset:0;} }
+  @keyframes fadeOut       { to{opacity:0;} }
 
-body.dark-mode {
-  --bg:#111009; --surface:#1a1714; --surface2:#1f1c18;
-  --border:#2e2925; --border2:#3a3530;
-  --text:#e8e4df; --text2:#a59d94; --text3:#6b6259;
-  --accent:#e07840; --accent-bg:#2a1a10; --accent-border:#5a3020;
-  --green:#3a9966; --green-bg:#0d2018; --red:#e05040;
-  --shadow-sm:0 1px 3px rgba(0,0,0,0.3),0 1px 2px rgba(0,0,0,0.2);
-  --shadow:0 4px 16px rgba(0,0,0,0.4),0 1px 4px rgba(0,0,0,0.3);
-}
-
-/* Dark mode scrim */
-.dark-scrim {
-  position:fixed; inset:0; z-index:0;
-  background:rgba(6,5,3,0.0); backdrop-filter:blur(0px); -webkit-backdrop-filter:blur(0px);
-  pointer-events:none;
-  transition: background 0.5s ease, backdrop-filter 0.5s ease, -webkit-backdrop-filter 0.5s ease;
-}
-body.dark-mode .dark-scrim {
-  background:rgba(6,5,3,0.55); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px);
-}
-
-html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Instrument Sans',sans-serif; font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; overflow-x:hidden; transition:background 0.5s, color 0.5s; }
-
-/* Paper grain */
-body::before { content:''; position:fixed; inset:0; opacity:0.025; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); background-size:200px; pointer-events:none; z-index:0; }
-
-/* Grid overlay */
-body::after { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(201,98,47,0.03) 1px, transparent 1px),linear-gradient(90deg, rgba(201,98,47,0.03) 1px, transparent 1px); background-size:40px 40px; pointer-events:none; z-index:0; opacity:0.6; }
-
-body.dark-mode input:focus, body.dark-mode select:focus { background:var(--surface2); }
-
-/* ── Page load animations ── */
-@keyframes slideDown  { from { opacity:0; transform:translateY(-22px); } to { opacity:1; transform:none; } }
-@keyframes slideUp    { from { opacity:0; transform:translateY(22px);  } to { opacity:1; transform:none; } }
-@keyframes slideLeft  { from { opacity:0; transform:translateX(22px);  } to { opacity:1; transform:none; } }
-@keyframes fadeIn     { from { opacity:0; } to { opacity:1; } }
-@keyframes scaleIn    { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
-@keyframes shimmer    { 0%   { background-position:-400px 0; } 100% { background-position:400px 0; } }
-@keyframes pulse-ring { 0%   { transform:scale(0.9); opacity:0.8; } 100% { transform:scale(1.6); opacity:0; } }
-@keyframes spin       { to   { transform:rotate(360deg); } }
-@keyframes bounce-in  { 0%   { transform:scale(0); opacity:0; } 60%  { transform:scale(1.15); opacity:1; } 80%  { transform:scale(0.95); } 100% { transform:scale(1); } }
-@keyframes line-in    { from { opacity:0; transform:translateX(-8px); } to { opacity:1; transform:none; } }
-@keyframes count-pop  { 0%   { transform:scale(1); } 40%  { transform:scale(1.18); } 100% { transform:scale(1); } }
-@keyframes status-in  { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-@keyframes drop-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(201,98,47,0); } 50% { box-shadow:0 0 0 6px rgba(201,98,47,0.08); } }
-@keyframes success-pulse { 0%   { box-shadow:0 0 0 0 rgba(46,125,85,0.4); } 70%  { box-shadow:0 0 0 14px rgba(46,125,85,0); } 100% { box-shadow:0 0 0 0 rgba(46,125,85,0); } }
-@keyframes check-draw { from { stroke-dashoffset:30; } to { stroke-dashoffset:0; } }
-@keyframes float { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-4px); } }
-@keyframes border-glow { 0%,100% { border-color:#b8ddc9; } 50% { border-color:#6cc49a; } }
-
-.app { position:relative; z-index:1; min-height:100vh; max-width:1080px; margin:0 auto; padding:0 28px 60px; }
-
-/* ── Header ── */
-header {
-  padding:40px 0 32px; display:flex; align-items:flex-end; justify-content:space-between;
-  border-bottom:1px solid var(--border); margin-bottom:36px;
-  animation: slideDown 0.6s var(--ease-out) both;
-}
-.header-left { display:flex; flex-direction:column; gap:4px; }
-.header-eyebrow {
-  font-family:'Martian Mono',monospace; font-size:10px; font-weight:300;
-  letter-spacing:0.18em; text-transform:uppercase; color:var(--accent);
-  animation: fadeIn 0.8s ease both 0.3s;
-}
-h1 {
-  font-family:'DM Serif Display',serif; font-size:46px; font-weight:400;
-  letter-spacing:-0.02em; color:var(--text); line-height:1.05;
-  animation: slideDown 0.7s var(--ease-out) both 0.1s;
-}
-h1 em { font-style:italic; color:var(--accent); }
-.header-right { display:flex; flex-direction:column; align-items:flex-end; gap:10px; padding-bottom:4px; }
-.back-link { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.1em; text-decoration:none; display:flex; align-items:center; gap:5px; transition:color 0.2s,gap 0.2s var(--ease-spring); }
-.back-link:hover { color:var(--accent); gap:8px; }
-.back-link svg { width:12px; height:12px; }
-.dark-toggle { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); background:none; border:1px solid var(--border); border-radius:100px; padding:4px 10px; cursor:pointer; letter-spacing:0.1em; transition:all 0.2s; display:flex; align-items:center; gap:5px; }
-.dark-toggle:hover { color:var(--accent); border-color:var(--accent-border); background:var(--accent-bg); }
-.badge {
-  font-family:'Martian Mono',monospace; font-size:10px; font-weight:300;
-  letter-spacing:0.12em; padding:4px 10px; border-radius:100px;
-  background:var(--accent-bg); color:var(--accent); border:1px solid var(--accent-border);
-  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s;
-}
-.badge:nth-child(1) { animation: slideLeft 0.5s var(--ease-out) both 0.4s; }
-.badge:nth-child(2) { animation: slideLeft 0.5s var(--ease-out) both 0.5s; }
-.badge:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
-
-/* ── Grid ── */
-.grid { display:grid; grid-template-columns:1fr 340px; gap:20px; }
-.col-left  { display:flex; flex-direction:column; gap:16px; }
-.col-right { display:flex; flex-direction:column; gap:16px; }
-
-/* Staggered col animations */
-.col-left  > * { animation: slideUp 0.55s var(--ease-out) both; }
-.col-left  > *:nth-child(1) { animation-delay:0s; }
-.col-left  > *:nth-child(2) { animation-delay:0.12s; }
-.col-left  > *:nth-child(3) { animation-delay:0.22s; }
-.col-left  > *:nth-child(4) { animation-delay:0.32s; }
-.col-right > * { animation: slideLeft 0.55s var(--ease-out) both; }
-.col-right > *:nth-child(1) { animation-delay:0.1s; }
-.col-right > *:nth-child(2) { animation-delay:0.2s; }
-.col-right > *:nth-child(3) { animation-delay:0.3s; }
-
-/* ── Cards ── */
-.card {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); box-shadow:var(--shadow-sm); overflow:hidden;
-  transition: box-shadow 0.25s, transform 0.25s;
-}
-.card:hover { box-shadow:var(--shadow); }
-
-.card-header {
-  padding:14px 18px 12px; border-bottom:1px solid var(--border);
-  display:flex; align-items:center; justify-content:space-between; background:var(--surface2);
-}
-.card-title { font-size:12px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--text2); }
-.card-meta {
-  font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.05em;
-  transition: color 0.3s;
-}
-.card-meta.updated { color:var(--accent); animation: count-pop 0.3s var(--ease-spring); }
-
-/* ── Drop zone ── */
-.drop-zone {
-  border:1.5px dashed var(--border2); border-radius:var(--radius); background:var(--surface);
-  min-height:130px; display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:10px; cursor:pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
-  position:relative; overflow:hidden; transform:none !important;
-}
-/* Idle breathing animation */
-.drop-zone:not(.has-file):not(:hover) { animation: drop-pulse 3s ease-in-out infinite; }
-
-.drop-zone::after {
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%);
-  background-size:400px 100%; background-repeat:no-repeat; background-position:-400px 0;
-  transition: opacity 0.2s; opacity:0; pointer-events:none;
-}
-.drop-zone:hover::after { animation: shimmer 0.9s ease forwards; opacity:1; }
-
-.drop-zone:hover, .drop-zone.dragover {
-  border-color:var(--accent); border-style:solid; background:var(--accent-bg);
-  box-shadow:0 0 0 4px rgba(201,98,47,0.07), var(--shadow-sm);
-}
-.drop-zone.dragover { box-shadow:0 0 0 6px rgba(201,98,47,0.12), var(--shadow); }
-
-.drop-zone.has-file {
-  border-style:solid; border-color:#b8ddc9; background:var(--green-bg);
-  animation: border-glow 2.5s ease-in-out 3, success-pulse 0.6s ease both;
-  transform:none !important;
-}
-
-.drop-icon {
-  width:40px; height:40px; border-radius:50%;
-  background:var(--bg); border:1px solid var(--border);
-  display:flex; align-items:center; justify-content:center;
-  color:var(--text3); transition: all 0.3s var(--ease-spring);
-  position:relative;
-}
-.drop-icon::before {
-  content:''; position:absolute; inset:-4px; border-radius:50%;
-  border:1.5px solid transparent; transition: all 0.3s;
-}
-.drop-zone:hover .drop-icon {
-  background:var(--accent-bg); border-color:var(--accent-border); color:var(--accent);
-  transform:scale(1.08);
-}
-.drop-zone:hover .drop-icon::before { border-color:rgba(201,98,47,0.2); }
-.drop-zone.has-file .drop-icon {
-  background:var(--green-bg); border-color:#b8ddc9; color:var(--green);
-  animation: bounce-in 0.5s var(--ease-spring) both;
-}
-/* Floating animation for icon when file loaded */
-.drop-zone.has-file .drop-icon { animation: bounce-in 0.5s var(--ease-spring) both, float 3s ease-in-out 0.6s infinite; }
-
-.drop-label { font-size:14px; font-weight:500; color:var(--text); transition: color 0.2s; }
-.drop-sub   { font-size:12px; color:var(--text3); transition: all 0.2s; }
-.drop-filename {
-  font-family:'Martian Mono',monospace; font-size:11px; color:var(--green);
-  background:#d4f0e2; padding:4px 12px; border-radius:100px;
-  max-width:500px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  animation: scaleIn 0.4s var(--ease-spring) both;
-}
-#fileInput { display:none; }
-
-/* ── Preview ── */
-.preview-scroll {
-  height:260px; overflow-y:auto; padding:14px 18px;
-  font-family:'Martian Mono',monospace; font-size:11.5px; line-height:1.75;
-  color:var(--text2); white-space:pre-wrap; word-break:break-all;
-}
-.preview-scroll::-webkit-scrollbar { width:5px; }
-.preview-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:10px; transition: background 0.2s; }
-.preview-scroll::-webkit-scrollbar-thumb:hover { background:var(--border2); }
-
-.preview-empty {
-  display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:10px;
-  color:var(--text3); font-size:12px; letter-spacing:0.05em;
-}
-.preview-empty svg { opacity:0.35; animation: float 4s ease-in-out infinite; }
-
-/* When preview is empty, hide scrollbar and centre content */
-.preview-scroll.is-empty {
-  overflow-y:hidden; padding:0;
-  display:flex; align-items:center; justify-content:center;
-}
-
-/* Preview lines animate in */
-.preview-line { animation: line-in 0.15s ease both; }
-
-/* ── Output ── */
-.output-scroll {
-  height:160px; overflow-y:auto; padding:14px 18px;
-  font-family:'Martian Mono',monospace; font-size:11.5px; line-height:1.75;
-  color:var(--text2); white-space:pre-wrap; background:var(--surface2);
-  display:flex; flex-direction:column; align-items:flex-start; text-align:left;
-}
-.output-scroll::-webkit-scrollbar { width:5px; }
-.output-scroll::-webkit-scrollbar-thumb { background:var(--border2); border-radius:10px; }
-.out-cmd   { color:var(--accent); }
-.out-coord { color:var(--green); }
-.out-dim   { color:var(--text3); }
-.out-line  { display:block; animation: line-in 0.12s ease both; }
-
-/* ── Settings ── */
-.settings-body { padding:18px; display:flex; flex-direction:column; gap:16px; }
-.field { display:flex; flex-direction:column; gap:6px; }
-.field-label { font-size:11.5px; font-weight:600; color:var(--text2); letter-spacing:0.02em; }
-.field-row { display:flex; gap:8px; }
-
-input[type="number"], select {
-  width:100%; padding:8px 12px; background:var(--surface);
-  border:1px solid var(--border); border-radius:var(--radius-sm);
-  color:var(--text); font-family:'Martian Mono',monospace; font-size:12px;
-  outline:none; transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
-  -moz-appearance:textfield;
-}
-input[type="number"]::-webkit-inner-spin-button { display:none; }
-input[type="number"]:focus, select:focus {
-  border-color:var(--accent);
-  box-shadow:0 0 0 3px rgba(201,98,47,0.1);
-  background:#fffcfa;
-}
-input[type="number"] { text-align:center; }
-select { cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7'%3E%3Cpath fill='%23a59d94' d='M0 0l6 7 6-7z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; text-align:left; }
-select option { background:#fff; }
-
-.spinbox { display:flex; align-items:center; }
-.spinbox input { border-radius:0; border-left:none; border-right:none; }
-.spin-btn {
-  width:36px; height:36px; flex-shrink:0; background:var(--surface2);
-  border:1px solid var(--border); color:var(--text3); cursor:pointer; font-size:16px;
-  display:flex; align-items:center; justify-content:center; transition: all 0.15s; user-select:none;
-}
-.spin-btn:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm); }
-.spin-btn:last-child  { border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
-.spin-btn:hover { background:var(--accent-bg); color:var(--accent); border-color:var(--accent-border); transform:scale(1.05); }
-.spin-btn:active { transform:scale(0.95); }
-
-.col-labels { display:flex; gap:8px; font-size:11px; color:var(--text3); text-align:center; }
-.col-labels span { flex:1; }
-
-/* ── Stats ── */
-.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border-radius:var(--radius-sm); overflow:hidden; }
-.stat { background:var(--surface2); padding:12px 10px; text-align:center; display:flex; flex-direction:column; gap:2px; transition: background 0.3s; }
-.stat-val {
-  font-family:'DM Serif Display',serif; font-size:24px; color:var(--text); line-height:1;
-  transition: color 0.4s, transform 0.3s;
-  display:inline-block;
-}
-.stat-val.has-data { color:var(--accent); }
-.stat-val.pop { animation: count-pop 0.35s var(--ease-spring); }
-.stat-lbl { font-size:10px; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; }
-
-/* ── Buttons ── */
-.btn {
-  height:42px; border:none; border-radius:var(--radius-sm); cursor:pointer;
-  font-family:'Instrument Sans',sans-serif; font-size:13px; font-weight:600; letter-spacing:0.01em;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  transition: all 0.2s var(--ease-out); position:relative; overflow:hidden;
-}
-.btn:disabled { opacity:0.4; cursor:not-allowed; transform:none !important; filter:grayscale(0.3); }
-.btn svg { width:16px; height:16px; flex-shrink:0; transition: transform 0.2s var(--ease-spring); }
-.btn:hover:not(:disabled) svg { transform: scale(1.15); }
-.btn:active:not(:disabled) { transform:scale(0.97) !important; }
-
-/* Ripple */
-.ripple {
-  position:absolute; border-radius:50%; transform:scale(0); background:rgba(255,255,255,0.35);
-  animation: ripple-anim 0.55s var(--ease-out) forwards; pointer-events:none;
-}
-@keyframes ripple-anim { to { transform:scale(4); opacity:0; } }
-
-.btn-primary {
-  background:var(--accent); color:#fff;
-  box-shadow:0 2px 8px rgba(201,98,47,0.28), 0 1px 2px rgba(201,98,47,0.2);
-}
-.btn-primary:hover:not(:disabled) {
-  background:#b55728;
-  box-shadow:0 5px 18px rgba(201,98,47,0.4), 0 2px 4px rgba(201,98,47,0.2);
-  transform:translateY(-2px);
-}
-
-.btn-secondary {
-  background:var(--surface); color:var(--text);
-  border:1px solid var(--border); box-shadow:var(--shadow-sm);
-}
-.btn-secondary:hover:not(:disabled) {
-  background:var(--surface2); border-color:var(--border2);
-  transform:translateY(-2px); box-shadow:var(--shadow);
-}
-
-.btn-ghost { background:transparent; color:var(--text3); border:1px solid var(--border); }
-.btn-ghost:hover:not(:disabled) { background:var(--surface); color:var(--text2); }
-.btn-ghost:hover:not(:disabled) svg { transform: rotate(180deg) scale(1.1); }
-
-.action-row { display:flex; gap:10px; }
-.action-row .btn { flex:1; }
-
-/* ── Status message ── */
-.status-wrap { min-height:28px; display:flex; align-items:center; margin-top:10px; }
-.status-msg {
-  font-size:12.5px; font-weight:500; padding:0 2px;
-  transition: all 0.3s; display:flex; align-items:center; gap:6px;
-}
-.status-msg.ok    { color:var(--green); animation: status-in 0.3s var(--ease-spring) both; }
-.status-msg.error { color:var(--red);   animation: status-in 0.3s var(--ease-spring) both; }
-.status-msg.info  { color:var(--accent);animation: status-in 0.3s var(--ease-spring) both; }
-
-/* Export flash overlay on card */
-.export-flash {
-  position:absolute; inset:0; background:rgba(46,125,85,0.06); border-radius:var(--radius);
-  animation: fadeIn 0.1s ease both, fadeOut 0.5s ease 0.2s both; pointer-events:none; z-index:10;
-}
-@keyframes fadeOut { to { opacity:0; } }
-
-/* ── How-to steps ── */
-.how-step { display:flex; gap:12px; align-items:flex-start; transition: transform 0.2s var(--ease-spring); }
-.how-step:hover { transform:translateX(3px); }
-.step-num {
-  width:22px; height:22px; border-radius:50%;
-  background:var(--accent-bg); border:1px solid var(--accent-border); color:var(--accent);
-  font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center;
-  flex-shrink:0; transition: all 0.2s var(--ease-spring);
-}
-.how-step:hover .step-num { background:var(--accent); color:#fff; transform:scale(1.1); }
-.step-text { font-size:13px; color:var(--text2); line-height:1.4; }
-code {
-  background:var(--bg); padding:1px 5px; border-radius:3px;
-  font-family:'Martian Mono',monospace; font-size:10px;
-  border:1px solid var(--border);
-}
-
-/* ── Progress bar (parsing) ── */
-.parse-bar-wrap { height:2px; background:var(--border); border-radius:2px; overflow:hidden; margin-top:2px; opacity:0; transition: opacity 0.3s; }
-.parse-bar-wrap.visible { opacity:1; }
-.parse-bar { height:100%; width:0%; background:var(--accent); border-radius:2px; transition: width 0.4s var(--ease-out); }
-
-/* ── Loading shimmer on preview ── */
-.skeleton-line {
-  height:13px; border-radius:3px; margin:6px 0;
-  background:linear-gradient(90deg, var(--border) 25%, var(--surface2) 50%, var(--border) 75%);
-  background-size:400px 100%; animation: shimmer 1.2s infinite;
-}
-
-/* ── Checkmark SVG animation ── */
-.check-svg .check-path {
-  stroke-dasharray:30; stroke-dashoffset:30;
-  animation: check-draw 0.4s ease 0.1s both;
-}
-
-/* ── Easter egg: hint modal ── */
-.hint-overlay {
-  position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
-  background:rgba(26,23,20,0.7); backdrop-filter:blur(4px);
-  animation:fadeIn 0.25s ease both; cursor:pointer;
-}
-.hint-box {
-  background:var(--surface); border:1px solid var(--border); border-radius:20px;
-  padding:32px 36px; max-width:460px; width:90%; cursor:default;
-  box-shadow:var(--shadow-lg); animation:scaleIn 0.4s var(--ease-spring) both;
-}
-.hint-title { font-family:'DM Serif Display',serif; font-size:26px; color:var(--text); margin-bottom:4px; }
-.hint-eyebrow { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:18px; }
-.hint-list { display:flex; flex-direction:column; gap:10px; }
-.hint-item { display:flex; gap:10px; align-items:flex-start; }
-.hint-key { font-family:'Martian Mono',monospace; font-size:9px; color:var(--accent); background:var(--accent-bg); border:1px solid var(--accent-border); padding:2px 7px; border-radius:4px; white-space:nowrap; flex-shrink:0; margin-top:2px; }
-.hint-desc { font-size:12px; color:var(--text2); line-height:1.5; }
-.hint-footer { font-family:'Martian Mono',monospace; font-size:9px; color:var(--text3); margin-top:20px; letter-spacing:0.08em; }
-.badge { cursor:pointer; }
-
-/* ── Konami easter egg ── */
-.konami-overlay {
-  position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;
-  background:rgba(10,10,10,0.88);backdrop-filter:blur(6px);
-  animation:fadeIn 0.3s ease both;cursor:pointer;
-}
-.konami-box {
-  background:#0d1a0f;border:1px solid #2e7d55;border-radius:20px;
-  padding:40px 48px;text-align:center;max-width:460px;
-  box-shadow:0 0 80px rgba(46,125,85,0.25),0 20px 60px rgba(0,0,0,0.5);
-  animation:scaleIn 0.4s var(--ease-spring) both;
-  font-family:'Martian Mono',monospace;
-}
-
-/* ── Toast ── */
-.toast {
-  position:fixed; bottom:28px; right:28px; z-index:9999;
-  background:var(--surface); border:1px solid var(--border); border-radius:12px;
-  padding:14px 18px; box-shadow:0 12px 40px rgba(0,0,0,0.15);
-  display:flex; align-items:center; gap:12px; max-width:320px;
-  animation:slideUp 0.4s var(--ease-spring) both;
-  font-family:'Instrument Sans',sans-serif;
-}
-.toast-icon { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:16px; }
-.toast-title { font-size:13px; font-weight:600; color:var(--text); }
-.toast-sub { font-family:'Martian Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:0.05em; margin-top:2px; }
-
-/* ── Dark announce flash ── */
-@keyframes flash-in { 0% { opacity:0; transform:scale(0.8); } 50% { opacity:1; transform:scale(1.05); } 100% { opacity:1; transform:scale(1); } }
-.dark-announce { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9999; pointer-events:none; font-family:'DM Serif Display',serif; font-size:48px; color:var(--accent); animation:flash-in 0.5s var(--ease-spring) both, fadeIn 0.3s ease 1.2s reverse both; text-align:center; }
-.konami-title { font-family:'DM Serif Display',serif;font-size:32px;color:#4caf72;margin-bottom:8px; }
-.konami-seq { font-size:22px;letter-spacing:0.15em;margin:16px 0;color:#6cc49a; }
-.konami-msg { font-size:11px;color:#3a7d55;line-height:1.8;letter-spacing:0.06em; }
-.konami-sub { font-size:10px;color:#2e5c40;margin-top:20px;letter-spacing:0.08em; }
-
-@media (max-width:720px) { .grid { grid-template-columns:1fr; } .action-row { flex-direction:column; } }
-
-/* ── Paste warning banner ── */
-.paste-banner {
-  display:flex; align-items:flex-start; gap:12px;
-  background:#fffbf0; border:1px solid #e8c84a; border-radius:var(--radius-sm);
-  padding:12px 14px; margin-bottom:4px;
-  animation: slideUp 0.35s var(--ease-spring) both;
-}
-body.dark-mode .paste-banner { background:#1e1a08; border-color:#6b5a10; }
-.paste-banner-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
-.paste-banner-body { display:flex; flex-direction:column; gap:3px; }
-.paste-banner-title { font-size:12.5px; font-weight:600; color:#7a5c00; }
-body.dark-mode .paste-banner-title { color:#d4a820; }
-.paste-banner-sub { font-family:'Martian Mono',monospace; font-size:10px; color:#a07a20; letter-spacing:0.04em; line-height:1.5; }
-body.dark-mode .paste-banner-sub { color:#8a7030; }
-.paste-banner-close { margin-left:auto; flex-shrink:0; background:none; border:none; cursor:pointer; color:#a07a20; font-size:16px; line-height:1; padding:0 2px; }
-
-/* ── Replace modal ── */
-.replace-overlay {
-  position:fixed; inset:0; z-index:8000; display:flex; align-items:center; justify-content:center;
-  background:rgba(26,23,20,0.6); backdrop-filter:blur(3px);
-  animation:fadeIn 0.2s ease both;
-}
-.replace-box {
-  background:var(--surface); border:1px solid var(--border); border-radius:16px;
-  padding:28px 32px; max-width:380px; width:90%;
-  box-shadow:var(--shadow); animation:scaleIn 0.3s var(--ease-spring) both;
-}
-.replace-title { font-family:'DM Serif Display',serif; font-size:22px; color:var(--text); margin-bottom:6px; }
-.replace-sub { font-size:13px; color:var(--text2); margin-bottom:20px; line-height:1.5; }
-.replace-btns { display:flex; gap:10px; }
-.replace-btns button {
-  flex:1; height:38px; border-radius:var(--radius-sm); font-family:'Instrument Sans',sans-serif;
-  font-size:13px; font-weight:600; cursor:pointer; border:1px solid var(--border);
-  transition: all 0.15s;
-}
-.replace-btn-yes { background:var(--accent); color:#fff; border-color:var(--accent) !important; }
-.replace-btn-yes:hover { background:#b55728; }
-.replace-btn-no  { background:var(--surface2); color:var(--text2); }
-.replace-btn-no:hover  { background:var(--surface); border-color:var(--border2); }
+  /* Converter drop zone (full-width hero variant) */
+  .drop-zone-hero {
+    border:2.5px dashed var(--ink); border-radius:var(--radius-lg);
+    background:var(--paper); min-height:180px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; cursor:pointer; margin-bottom:22px;
+    transition:all .25s var(--ease-spring); position:relative; overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .drop-zone-hero:not(.has-file):not(:hover){ animation:drop-pulse 3s ease-in-out infinite; }
+  .drop-zone-hero:hover,.drop-zone-hero.dragover{
+    border-style:solid; border-color:var(--page-accent);
+    background:var(--page-accent-bg);
+    box-shadow:8px 8px 0 var(--ink); transform:translate(-3px,-3px);
+  }
+  .drop-zone-hero.has-file{
+    border-style:solid; border-color:var(--mint);
+    background:var(--sea); box-shadow:8px 8px 0 var(--ink);
+    transform:translate(-3px,-3px); animation:success-pulse .6s ease both;
+  }
+  .drop-zone-hero .drop-icon{
+    width:56px; height:56px; border-radius:50%;
+    background:var(--cream); border:2.5px solid var(--ink);
+    display:flex; align-items:center; justify-content:center; color:var(--ink);
+    transition:all .3s var(--ease-spring); box-shadow:var(--shadow-sm);
+  }
+  .drop-zone-hero:hover .drop-icon{ background:var(--page-accent-bg); color:var(--page-accent); transform:scale(1.1) rotate(-8deg); }
+  .drop-zone-hero.has-file .drop-icon{ background:var(--sea); color:var(--green); animation:bounce-in .5s var(--ease-spring) both, float 3s ease-in-out .6s infinite; }
+  .drop-zone-hero .drop-label{ font-family:'Space Grotesk',sans-serif; font-size:17px; font-weight:700; color:var(--ink); }
+  .drop-zone-hero .drop-sub{ font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink); opacity:.6; letter-spacing:.08em; }
+  .drop-zone-hero .drop-filename{
+    font-family:'IBM Plex Mono',monospace; font-size:11px;
+    background:var(--hivis); padding:5px 16px; border-radius:100px;
+    border:2px solid var(--ink); box-shadow:2px 2px 0 var(--ink);
+    max-width:500px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    animation:scaleIn .4s var(--ease-spring) both;
+  }
+  /* Decorative watermark strip on drop zone */
+  .drop-zone-hero::after{
+    content:'GPS · CSV · TXT · SCR ·'; position:absolute; bottom:10px; right:14px;
+    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.2em;
+    text-transform:uppercase; opacity:.12; pointer-events:none; white-space:nowrap;
+  }
+  .check-svg .check-path{stroke-dasharray:30;stroke-dashoffset:30;animation:check-draw .4s ease .1s both}
+  .export-flash{position:absolute;inset:0;background:rgba(31,200,169,0.08);border-radius:var(--radius);animation:fadeIn .1s ease both,fadeOut .5s ease .2s both;pointer-events:none;z-index:10}
 </style>
 </head>
 <body>
-<div class="dark-scrim"></div>
 <div class="app">
 
-  <!-- ── Header ── -->
   <header>
     <div class="header-left">
-      <div class="header-eyebrow">Leica GPS · Total Station</div>
-      <h1>Coordinate<br><em>Converter</em></h1>
+      <div class="header-eyebrow">Leica GPS · Total Station · Coordinate Export</div>
+      <h1>Coordinate <em>Converter</em></h1>
     </div>
     <div class="header-right">
       <div class="badge" id="gpsBadge" onclick="badgeClick()">GPS → AutoCAD</div>
-      <button class="dark-toggle" id="darkToggle" onclick="toggleDark()">🌑 night shift</button>
-      <a href="index.html" class="back-link" id="backLink">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      <a href="index.html" class="back-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
         Back to Toolbox
       </a>
     </div>
   </header>
 
+  <!-- Full-width Drop Zone -->
+  <div class="drop-zone-hero" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="drop-icon" id="dropIcon">
+      <svg id="dropIconSvg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <div class="drop-label" id="dropLabel">Drop your GPS file here</div>
+    <div class="drop-sub" id="dropSub">or click to browse — .csv, .txt — or paste from Excel</div>
+    <div class="drop-filename" id="dropFilename" style="display:none"></div>
+  </div>
+  <input type="file" id="fileInput" accept=".csv,.txt,*" style="display:none">
+
   <div class="grid">
 
-    <!-- ── Left column ── -->
+    <!-- LEFT COLUMN -->
     <div class="col-left">
-
-      <!-- Drop zone -->
-      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
-        <div class="drop-icon" id="dropIcon">
-          <svg id="dropIconSvg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-        </div>
-        <div class="drop-label" id="dropLabel">Drop your GPS file here</div>
-        <div class="drop-sub" id="dropSub">or click to browse — .csv, .txt — or paste from Excel</div>
-        <div class="drop-filename" id="dropFilename" style="display:none"></div>
-      </div>
-      <input type="file" id="fileInput" accept=".csv,.txt,*">
 
       <!-- Raw preview -->
       <div class="card" id="previewCard">
@@ -578,7 +148,7 @@ body.dark-mode .paste-banner-sub { color:#8a7030; }
               <rect x="2" y="7" width="16" height="14" rx="2"/>
               <path d="M22 5H8"/><path d="M6 3h14v14"/>
             </svg>
-            Export into Layers
+            Export Layers
           </button>
           <button class="btn btn-ghost" onclick="clearAll()" title="Reset">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -594,12 +164,12 @@ body.dark-mode .paste-banner-sub { color:#8a7030; }
 
     </div>
 
-    <!-- ── Right column ── -->
+    <!-- RIGHT COLUMN -->
     <div class="col-right">
 
       <!-- Settings -->
       <div class="card">
-        <div class="card-header"><span class="card-title">Settings</span></div>
+        <div class="card-header"><span class="card-title">Settings</span><span class="card-meta">file structure</span></div>
         <div class="settings-body">
           <div class="field">
             <div class="field-label">Header rows to skip</div>
@@ -610,7 +180,7 @@ body.dark-mode .paste-banner-sub { color:#8a7030; }
             </div>
           </div>
           <div class="field">
-            <div class="field-label">Column mapping <span style="font-weight:400;color:var(--text3)">(1-indexed)</span></div>
+            <div class="field-label">Column mapping <span style="font-weight:400;opacity:.6">(1-indexed)</span></div>
             <div class="field-row">
               <input type="number" id="colX" value="2" min="1" placeholder="X">
               <input type="number" id="colY" value="3" min="1" placeholder="Y">
@@ -630,9 +200,9 @@ body.dark-mode .paste-banner-sub { color:#8a7030; }
         </div>
       </div>
 
-      <!-- Stats -->
+      <!-- Parse Results -->
       <div class="card">
-        <div class="card-header"><span class="card-title">Parse Results</span></div>
+        <div class="card-header"><span class="card-title">Parse Results</span><span class="card-meta">after load</span></div>
         <div style="padding:16px">
           <div class="stats-grid">
             <div class="stat"><div class="stat-val" id="statPoints">—</div><div class="stat-lbl">Points</div></div>
@@ -645,815 +215,20 @@ body.dark-mode .paste-banner-sub { color:#8a7030; }
       <!-- How to use -->
       <div class="card">
         <div class="card-header"><span class="card-title">How to use</span></div>
-        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:4px">
           <div class="how-step"><div class="step-num">1</div><div class="step-text">Drop or browse your GPS / total station export file (.csv or .txt)</div></div>
           <div class="how-step"><div class="step-num">2</div><div class="step-text">Adjust header rows and column mapping to match your file structure</div></div>
           <div class="how-step"><div class="step-num">3</div><div class="step-text">Export as a single file, or export into layers — one AutoCAD layer per point group</div></div>
-          <div class="how-step"><div class="step-num">4</div><div class="step-text">In AutoCAD, run the .scr using the "<code>SCR</code>" command</div></div>
+          <div class="how-step"><div class="step-num">4</div><div class="step-text">In AutoCAD, run the .scr using the <code>SCR</code> command</div></div>
         </div>
       </div>
 
     </div>
   </div>
+
 </div>
 
-<script>
-// ── Dark mode (persist via URL param + localStorage) ──
-(function(){
-  const p = new URLSearchParams(window.location.search);
-  if (p.get('darkmode') === 'true' || localStorage.getItem('darkmode') === 'true') {
-    document.body.classList.add('dark-mode');
-  }
-})();
-
-function toggleDark() {
-  document.body.classList.toggle('dark-mode');
-  const isDark = document.body.classList.contains('dark-mode');
-  localStorage.setItem('darkmode', isDark ? 'true' : 'false');
-  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
-  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
-}
-
-// Sync button label and back-link on load
-(function(){
-  const isDark = document.body.classList.contains('dark-mode');
-  document.getElementById('darkToggle').textContent = isDark ? '☀ day mode' : '🌑 night shift';
-  document.getElementById('backLink').href = isDark ? 'index.html?darkmode=true' : 'index.html';
-})();
-
-// ── Badge: 3x click → hint modal ──
-let badgeClicks = 0, badgeTimer;
-function badgeClick() {
-  badgeClicks++;
-  clearTimeout(badgeTimer);
-  badgeTimer = setTimeout(() => badgeClicks = 0, 900);
-  if (badgeClicks >= 3) {
-    badgeClicks = 0;
-    showHintModal();
-  }
-}
-
-function showHintModal() {
-  const overlay = document.createElement('div');
-  overlay.className = 'hint-overlay';
-  overlay.innerHTML = `
-    <div class="hint-box" onclick="event.stopPropagation()">
-      <div class="hint-eyebrow">classified · site eyes only</div>
-      <div class="hint-title">Easter Eggs</div>
-      <div class="hint-list">
-        <div class="hint-item">
-          <span class="hint-key">triple-click the eyebrow</span>
-          <span class="hint-desc">GPS signal lost. Coordinates drift and corrupt on screen before snapping back.</span>
-        </div>
-        <div class="hint-item">
-          <span class="hint-key">type "oops"</span>
-          <span class="hint-desc">Files a fake H&S near-miss incident report, complete with reference number and a deadpan description of events.</span>
-        </div>
-        <div class="hint-item">
-          <span class="hint-key">export 3 times</span>
-          <span class="hint-desc">On the third export, a critical warning asks whether you have actually checked your coordinate system.</span>
-        </div>
-      </div>
-      <div class="hint-footer">[ click anywhere to close ]</div>
-    </div>
-  `;
-  overlay.addEventListener('click', () => overlay.remove());
-  document.body.appendChild(overlay);
-}
-
-let rawText='', parsedRows=[], fileName='';
-
-// ── File input ──
-document.getElementById('fileInput').addEventListener('change', e => {
-  if (e.target.files[0]) loadFile(e.target.files[0]);
-});
-
-// ── Drag & drop ──
-const zone = document.getElementById('dropZone');
-zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
-zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('dragover'); });
-zone.addEventListener('drop', e => {
-  e.preventDefault(); zone.classList.remove('dragover');
-  if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
-});
-
-// ── Paste from Excel ──
-document.addEventListener('paste', e => {
-  const tag = document.activeElement.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-  const text = e.clipboardData.getData('text/plain');
-  if (!text || !text.trim()) return;
-  e.preventDefault();
-  if (rawText) {
-    showReplaceModal(text);
-  } else {
-    loadPastedData(text);
-  }
-});
-
-function showReplaceModal(pendingText) {
-  const overlay = document.createElement('div');
-  overlay.className = 'replace-overlay';
-  overlay.innerHTML = `
-    <div class="replace-box" onclick="event.stopPropagation()">
-      <div class="replace-title">Replace loaded data?</div>
-      <div class="replace-sub">You already have a file loaded. Do you want to replace it with the pasted data?</div>
-      <div class="replace-btns">
-        <button class="replace-btn-yes" id="replaceYes">Replace</button>
-        <button class="replace-btn-no"  id="replaceNo">Keep file</button>
-      </div>
-    </div>
-  `;
-  overlay.addEventListener('click', () => overlay.remove());
-  document.body.appendChild(overlay);
-  document.getElementById('replaceYes').onclick = () => { overlay.remove(); loadPastedData(pendingText); };
-  document.getElementById('replaceNo').onclick  = () => overlay.remove();
-}
-
-function detectHeaders(firstRow) {
-  // Returns { colX, colY, colZ } as 1-indexed, or null if not detected
-  const xKeys = ['easting','east','e','x','grid_e','x(m)','e(m)'];
-  const yKeys = ['northing','north','n','y','grid_n','y(m)','n(m)'];
-  const zKeys = ['height','elevation','elev','h','z','rl','level','z(m)','h(m)'];
-  const headers = firstRow.map(h => h.toLowerCase().trim());
-  const xi = headers.findIndex(h => xKeys.includes(h));
-  const yi = headers.findIndex(h => yKeys.includes(h));
-  const zi = headers.findIndex(h => zKeys.includes(h));
-  if (xi === -1 || yi === -1 || zi === -1) return null;
-  return { colX: xi + 1, colY: yi + 1, colZ: zi + 1 };
-}
-
-function loadPastedData(text) {
-  // Excel pastes as tab-separated
-  const isTabSep = text.includes('\t');
-  const lines = text.trim().split('\n').filter(l => l.trim());
-  if (!lines.length) return;
-
-  // Convert tabs to commas so existing CSV parser works
-  const converted = isTabSep
-    ? lines.map(l => l.split('\t').map(c => c.trim()).join(',')).join('\n')
-    : text.trim();
-
-  // Try to detect headers from first row
-  const firstRow = isTabSep
-    ? lines[0].split('\t').map(c => c.trim())
-    : lines[0].split(',').map(c => c.trim());
-
-  const firstRowIsNumeric = firstRow.slice(1, 4).every(v => !isNaN(parseFloat(v)));
-  let detected = null;
-  let bannerMsg = '';
-
-  if (!firstRowIsNumeric) {
-    // First row looks like headers — try to match
-    detected = detectHeaders(firstRow);
-    if (detected) {
-      document.getElementById('headerRows').value = 1;
-      document.getElementById('colX').value = detected.colX;
-      document.getElementById('colY').value = detected.colY;
-      document.getElementById('colZ').value = detected.colZ;
-      bannerMsg = `Headers detected — X=col ${detected.colX}, Y=col ${detected.colY}, Z=col ${detected.colZ}. Please verify before exporting.`;
-    } else {
-      document.getElementById('headerRows').value = 1;
-      document.getElementById('colX').value = 1;
-      document.getElementById('colY').value = 2;
-      document.getElementById('colZ').value = 3;
-      bannerMsg = `Headers found but column names weren't recognised. Defaulted to columns 1, 2, 3 with 1 header row skipped. Please check the mapping before exporting.`;
-    }
-  } else {
-    document.getElementById('headerRows').value = 0;
-    document.getElementById('colX').value = 2;
-    document.getElementById('colY').value = 3;
-    document.getElementById('colZ').value = 4;
-    bannerMsg = `No headers detected — defaulted to columns 2, 3, 4. Please verify the column mapping matches your data before exporting.`;
-  }
-
-  fileName = 'pasted-data.csv';
-  rawText = converted;
-
-  // Fake a file object for renderDropLoaded
-  renderDropLoadedPaste(lines.length);
-  renderPreview(rawText);
-  parseAndStats();
-  showPasteBanner(bannerMsg);
-}
-
-function renderDropLoadedPaste(lineCount) {
-  zone.classList.add('has-file');
-  document.getElementById('dropIconSvg').innerHTML = `
-    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" fill="none"/>
-    <polyline class="check-path" points="8 12 11 15 16 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  `;
-  const fn = document.getElementById('dropFilename');
-  fn.textContent = `Pasted data — ${lineCount} rows`;
-  fn.style.display = 'block';
-  document.getElementById('dropLabel').textContent = 'Pasted from clipboard — click to replace';
-  document.getElementById('dropSub').style.display = 'none';
-}
-
-function showPasteBanner(msg) {
-  document.getElementById('pasteBanner')?.remove();
-  const banner = document.createElement('div');
-  banner.id = 'pasteBanner';
-  banner.className = 'paste-banner';
-  banner.innerHTML = `
-    <div class="paste-banner-icon">⚠</div>
-    <div class="paste-banner-body">
-      <div class="paste-banner-title">Check your column mapping</div>
-      <div class="paste-banner-sub">${msg}</div>
-    </div>
-    <button class="paste-banner-close" onclick="document.getElementById('pasteBanner').remove()">×</button>
-  `;
-  // Insert it above the action buttons
-  const actionsDiv = document.querySelector('.action-row').parentElement;
-  actionsDiv.insertBefore(banner, actionsDiv.firstChild);
-}
-
-function loadFile(file) {
-  fileName = file.name;
-  document.getElementById('outputScroll').innerHTML = '<span class="out-dim">// parsing…</span>';
-  showSkeleton();
-  const r = new FileReader();
-  r.onload = evt => {
-    rawText = evt.target.result;
-    renderDropLoaded(file);
-    renderPreview(rawText);
-    parseAndStats();
-  };
-  r.readAsText(file);
-}
-
-function showSkeleton() {
-  const ps = document.getElementById('previewScroll');
-  let html = '';
-  const widths = [80,60,90,45,75,55,85,65,70,50];
-  widths.forEach(w => { html += `<div class="skeleton-line" style="width:${w}%"></div>`; });
-  ps.innerHTML = html;
-  // Progress bar
-  const bar = document.getElementById('parseBar');
-  const wrap = document.getElementById('parseBarWrap');
-  wrap.classList.add('visible');
-  bar.style.width = '0%';
-  setTimeout(() => bar.style.width = '60%', 50);
-}
-
-function renderDropLoaded(file) {
-  zone.classList.add('has-file');
-  // Swap upload icon → checkmark
-  document.getElementById('dropIconSvg').innerHTML = `
-    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" fill="none"/>
-    <polyline class="check-path" points="8 12 11 15 16 9" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  `;
-  const fn = document.getElementById('dropFilename');
-  fn.textContent = file.name;
-  fn.style.display = 'block';
-  document.getElementById('dropLabel').textContent = 'File loaded — click to replace';
-  document.getElementById('dropSub').style.display = 'none';
-}
-
-function renderPreview(text) {
-  // Finish progress bar
-  const bar = document.getElementById('parseBar');
-  bar.style.width = '100%';
-  setTimeout(() => {
-    document.getElementById('parseBarWrap').classList.remove('visible');
-    bar.style.width = '0%';
-  }, 500);
-
-  const lines = text.split('\n');
-  let html = '';
-  lines.forEach((l, i) => {
-    const delay = Math.min(i * 8, 300);
-    html += `<span class="preview-line" style="animation-delay:${delay}ms;display:block">` +
-            `<span style="color:var(--text3);user-select:none;margin-right:14px">${String(i+1).padStart(4)}</span>` +
-            esc(l) + `</span>`;
-  });
-  const previewEl = document.getElementById('previewScroll');
-  previewEl.classList.remove('is-empty');
-  previewEl.innerHTML = html;
-
-  // Animate meta badge
-  const meta = document.getElementById('previewMeta');
-  meta.textContent = `${lines.length} lines`;
-  meta.classList.add('updated');
-  setTimeout(() => meta.classList.remove('updated'), 400);
-}
-
-function parseAndStats() {
-  const skip = parseInt(document.getElementById('headerRows').value) || 0;
-  const cx   = (parseInt(document.getElementById('colX').value) || 1) - 1;
-  const cy   = (parseInt(document.getElementById('colY').value) || 1) - 1;
-  const cz   = (parseInt(document.getElementById('colZ').value) || 1) - 1;
-  const lines = rawText.split('\n');
-  const dataLines = lines.slice(skip);
-  parsedRows = [];
-  let skipped = 0;
-  dataLines.forEach(line => {
-    if (!line.trim()) { return; }
-    const row = parseCSV(line);
-    const x = parseFloat(row[cx]), y = parseFloat(row[cy]), z = parseFloat(row[cz]);
-    if (isNaN(x) || isNaN(y) || isNaN(z)) { skipped++; return; }
-    parsedRows.push({ name: row[0] || '', x, y, z });
-  });
-
-  const pts = parsedRows.length;
-  // Animated counting for stats
-  animateCount('statPoints',  pts,        pts > 0);
-  animateCount('statSkipped', skipped,    pts > 0);
-  animateCount('statRows',    dataLines.length, pts > 0);
-
-  renderOutputPreview();
-  const ok = pts > 0;
-  document.getElementById('btnSingle').disabled = !ok;
-  document.getElementById('btnMulti').disabled  = !ok;
-  setStatus(ok
-    ? `✓ ${pts} valid point${pts !== 1 ? 's' : ''} ready to export`
-    : '⚠ No valid points found — check column mapping',
-    ok ? 'ok' : 'error'
-  );
-}
-
-function animateCount(id, target, hasData) {
-  const el = document.getElementById(id);
-  const start = parseInt(el.textContent) || 0;
-  if (isNaN(target)) { el.textContent = '—'; return; }
-  el.classList.toggle('has-data', hasData);
-
-  const duration = 600;
-  const startTime = performance.now();
-  function tick(now) {
-    const progress = Math.min((now - startTime) / duration, 1);
-    // ease out cubic
-    const eased = 1 - Math.pow(1 - progress, 3);
-    el.textContent = Math.round(start + (target - start) * eased);
-    if (progress < 1) requestAnimationFrame(tick);
-    else {
-      el.textContent = target;
-      el.classList.add('pop');
-      setTimeout(() => el.classList.remove('pop'), 350);
-    }
-  }
-  requestAnimationFrame(tick);
-}
-
-// AutoCAD Color Index palette — distinct, readable colours
-const ACI = [
-  { num:1,   hex:'#e05252', name:'Red'      },
-  { num:3,   hex:'#4caf72', name:'Green'    },
-  { num:4,   hex:'#4ab8c9', name:'Cyan'     },
-  { num:5,   hex:'#5b7fc4', name:'Blue'     },
-  { num:6,   hex:'#b05ab0', name:'Magenta'  },
-  { num:30,  hex:'#e07c30', name:'Orange'   },
-  { num:2,   hex:'#d4b800', name:'Yellow'   },
-  { num:140, hex:'#8bc34a', name:'Lime'     },
-  { num:170, hex:'#26a69a', name:'Teal'     },
-  { num:200, hex:'#7c4dff', name:'Violet'   },
-  { num:220, hex:'#ec407a', name:'Pink'     },
-  { num:50,  hex:'#c09a20', name:'Gold'     },
-];
-
-function getGroups() {
-  const groups = {};
-  parsedRows.forEach(r => {
-    const key = r.name ? r.name.replace(/\d+$/, '').trim() || 'GROUP' : 'GROUP';
-    (groups[key] = groups[key] || []).push(r);
-  });
-  return groups;
-}
-
-function renderOutputPreview() {
-  if (!parsedRows.length) {
-    document.getElementById('outputScroll').innerHTML = '<span class="out-dim">// no valid points — check column mapping</span>';
-    return;
-  }
-  const fmt = document.getElementById('outputFormat').value;
-  const groups = getGroups();
-  const keys = Object.keys(groups);
-  const isMultiGroup = keys.length > 1 && fmt === 'scr';
-
-  let html = '';
-  let lineIdx = 0;
-  const delay = i => `animation-delay:${i * 16}ms`;
-
-  if (isMultiGroup) {
-    keys.slice(0, 4).forEach((key, gi) => {
-      const color = ACI[gi % ACI.length];
-      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">LAYER N ${key} COLOR ${color.num} ${key}</span>`;
-      html += `<span class="out-line out-dim" style="${delay(lineIdx++)}"> </span>`;
-    });
-    if (keys.length > 4) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">… ${keys.length - 4} more layers</span>`;
-    keys.slice(0, 4).forEach((key, gi) => {
-      const color = ACI[gi % ACI.length];
-      html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CLAYER ${key}</span>`;
-      groups[key].slice(0, 3).forEach(r => {
-        html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${'_POINT'} ${r.x},${r.y},${r.z}</span>`;
-      });
-      if (groups[key].length > 3) html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">  … ${groups[key].length - 3} more in ${key}</span>`;
-    });
-    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">CLAYER 0</span>`;
-    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">PDMODE 3</span>`;
-    html += `<span class="out-line out-dim" style="${delay(lineIdx++)}">PDSIZE 0.25</span>`;
-    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">ZOOM E</span>`;
-  } else if (fmt === 'scr') {
-    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">_MULTIPLE _POINT</span>`;
-    parsedRows.slice(0, 30).forEach(r => {
-      html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${r.x},${r.y},${r.z}</span>`;
-    });
-    if (parsedRows.length > 30) html += `<span class="out-line out-dim" style="${delay(lineIdx)}">… ${parsedRows.length - 30} more points</span>`;
-  } else {
-    html += `<span class="out-line out-cmd" style="${delay(lineIdx++)}">name,x,y,z</span>`;
-    parsedRows.slice(0, 30).forEach(r => {
-      html += `<span class="out-line out-coord" style="${delay(lineIdx++)}">${r.name},${r.x},${r.y},${r.z}</span>`;
-    });
-    if (parsedRows.length > 30) html += `<span class="out-line out-dim" style="${delay(lineIdx)}">… ${parsedRows.length - 30} more rows</span>`;
-  }
-  document.getElementById('outputScroll').innerHTML = html;
-
-  // Update output meta hint
-  const meta = document.getElementById('outputMeta');
-  if (isMultiGroup) {
-    meta.textContent = `${keys.length} colour groups`;
-    meta.classList.add('updated'); setTimeout(() => meta.classList.remove('updated'), 400);
-  } else {
-    meta.textContent = 'first 30 lines';
-  }
-}
-
-function doConvert(e, mode) {
-  if (!parsedRows.length) return;
-  addRipple(e);
-
-  const fmt  = document.getElementById('outputFormat').value;
-  const ext  = fmt === 'scr' ? '.scr' : '.csv';
-  const base = fileName.replace(/\.[^.]+$/, '');
-
-  if (mode === 'single') {
-    download(buildSingleContent(parsedRows, fmt), base + ext);
-    flashExport();
-    setStatus(`✓ Saved ${base + ext}`, 'ok');
-  } else {
-    // "Export with Layers" — always a single layered .scr, or split CSVs
-    const groups = getGroups();
-    const keys = Object.keys(groups);
-    if (fmt === 'scr' && keys.length > 1) {
-      // Single colour-coded script file
-      download(buildColorScript(groups), base + '_coloured.scr');
-      flashExport();
-      setStatus(`✓ Exported ${keys.length} colour groups → ${base}_coloured.scr`, 'ok');
-    } else if (keys.length <= 1) {
-      // No distinct groups — chunk into 500-pt files
-      const size = 500; let i = 0, n = 0;
-      while (i < parsedRows.length) {
-        n++;
-        const c = parsedRows.slice(i, i + size);
-        setTimeout(((ch, nm) => () => download(buildSingleContent(ch, fmt), nm))(c, `${base}_part${n}${ext}`), (n-1) * 250);
-        i += size;
-      }
-      flashExport();
-      setStatus(`✓ Exported ${n} files (${size}-point chunks)`, 'ok');
-    } else {
-      // CSV: one file per group
-      keys.forEach((k, i) => {
-        setTimeout(() => download(buildSingleContent(groups[k], fmt), `${base}_${k}${ext}`), i * 200);
-      });
-      flashExport();
-      setStatus(`✓ Exported ${keys.length} CSV group files`, 'ok');
-    }
-  }
-  maybeWrongCRS();
-}
-
-function flashExport() {
-  // Inject keyframes once
-  if (!document.getElementById('exportFlashStyle')) {
-    const s = document.createElement('style');
-    s.id = 'exportFlashStyle';
-    s.textContent = `
-      @keyframes exportFlash  { 0%{opacity:0} 10%{opacity:1} 100%{opacity:0} }
-      @keyframes exportRing   { 0%{opacity:1;transform:scale(0.94)} 100%{opacity:0;transform:scale(1.06)} }
-      @keyframes exportRing2  { 0%{opacity:0.6;transform:scale(0.97)} 100%{opacity:0;transform:scale(1.1)} }
-      @keyframes toastSlideUp { 0%{opacity:0;transform:translateY(18px) scale(0.95)} 18%{opacity:1;transform:translateY(0) scale(1)} 75%{opacity:1;transform:translateY(0) scale(1)} 100%{opacity:0;transform:translateY(-8px) scale(0.97)} }
-      @keyframes arrowBounce  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
-      @keyframes checkPop     { 0%{transform:scale(0)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
-    `;
-    document.head.appendChild(s);
-  }
-
-  // Full-screen radial green flash — much stronger
-  const flash = document.createElement('div');
-  flash.style.cssText = 'position:fixed;inset:0;z-index:100;pointer-events:none;background:radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(46,125,85,0.18) 60%, rgba(46,125,85,0.55) 100%);animation:exportFlash 1s ease both;';
-  document.body.appendChild(flash);
-  setTimeout(() => flash.remove(), 1050);
-
-  // Double border ring sweep
-  const ring = document.createElement('div');
-  ring.style.cssText = 'position:fixed;inset:0;z-index:101;pointer-events:none;border:4px solid rgba(46,125,85,0.7);animation:exportRing 0.7s cubic-bezier(0.16,1,0.3,1) both;';
-  document.body.appendChild(ring);
-  setTimeout(() => ring.remove(), 750);
-
-  const ring2 = document.createElement('div');
-  ring2.style.cssText = 'position:fixed;inset:8px;z-index:101;pointer-events:none;border:2px solid rgba(108,196,154,0.5);animation:exportRing2 0.9s cubic-bezier(0.16,1,0.3,1) 0.08s both;';
-  document.body.appendChild(ring2);
-  setTimeout(() => ring2.remove(), 1050);
-
-  // Success toast — bottom centre with arrow to downloads
-  const toast = document.createElement('div');
-  toast.style.cssText = `
-    position:fixed;bottom:36px;left:0;right:0;margin:0 auto;width:fit-content;z-index:300;pointer-events:none;
-    background:#1a2e24;border:1px solid #3a7d55;border-radius:14px;
-    padding:14px 22px;display:flex;align-items:center;justify-content:center;gap:14px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.3),0 0 0 1px rgba(46,125,85,0.2);
-    animation:toastSlideUp 2.8s cubic-bezier(0.16,1,0.3,1) both;
-    white-space:nowrap;
-  `;
-  toast.innerHTML = `
-    <div style="width:28px;height:28px;border-radius:50%;background:#2e7d55;display:flex;align-items:center;justify-content:center;flex-shrink:0;animation:checkPop 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.15s both;opacity:0;animation-fill-mode:both;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:1px;">
-      <span style="font-family:'Instrument Sans',sans-serif;font-size:13px;font-weight:600;color:#e8f5ee;">File exported successfully</span>
-      <span style="font-family:'Martian Mono',monospace;font-size:10px;color:#6cc49a;letter-spacing:0.05em;">Check your downloads folder</span>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-left:4px;animation:arrowBounce 0.8s ease-in-out 0.4s infinite;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4caf72" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-    </div>
-  `;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-function addRipple(e) {
-  const btn = e.currentTarget;
-  const rect = btn.getBoundingClientRect();
-  const size = Math.max(btn.offsetWidth, btn.offsetHeight);
-  const x = e.clientX - rect.left - size / 2;
-  const y = e.clientY - rect.top  - size / 2;
-  const rip = document.createElement('span');
-  rip.className = 'ripple';
-  rip.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
-  btn.appendChild(rip);
-  setTimeout(() => rip.remove(), 600);
-}
-
-function buildSingleContent(rows, fmt) {
-  if (fmt === 'scr') return '_MULTIPLE _POINT\n' + rows.map(r => `${r.x},${r.y},${r.z}`).join('\n') + '\nZOOM E\n';
-  return 'name,x,y,z\n' + rows.map(r => `${r.name},${r.x},${r.y},${r.z}`).join('\n');
-}
-
-function buildColorScript(groups) {
-  const keys = Object.keys(groups);
-  let script = '';
-  // Create layers with colour assigned inline
-  keys.forEach((key, idx) => {
-    const color = ACI[idx % ACI.length];
-    script += `LAYER N ${key} COLOR ${color.num} ${key}\n\n`;
-  });
-  // Plot each group, switching layer with CLAYER
-  keys.forEach(key => {
-    script += `CLAYER ${key}\n`;
-    groups[key].forEach(r => { script += `_POINT ${r.x},${r.y},${r.z}\n`; });
-  });
-  // Footer
-  script += `CLAYER 0\nPDMODE 3\nPDSIZE 0.25\nZOOM E\n`;
-  return script;
-}
-function download(content, filename) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
-  a.download = filename; a.click(); URL.revokeObjectURL(a.href);
-}
-
-function clearAll() {
-  rawText = ''; parsedRows = []; fileName = '';
-  zone.classList.remove('has-file');
-  document.getElementById('dropFilename').style.display = 'none';
-  document.getElementById('dropLabel').textContent = 'Drop your GPS file here';
-  document.getElementById('dropSub').textContent   = 'or click to browse — .csv, .txt — or paste from Excel';
-  document.getElementById('dropSub').style.display = '';
-  document.getElementById('pasteBanner')?.remove();
-  // Restore upload icon
-  document.getElementById('dropIconSvg').innerHTML = `
-    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-    <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-  `;
-  const ps = document.getElementById('previewScroll');
-  ps.classList.add('is-empty');
-  ps.innerHTML = `
-    <div class="preview-empty">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>
-      </svg>
-      <span>No file loaded yet</span>
-    </div>`;
-  document.getElementById('previewMeta').textContent  = '—';
-  document.getElementById('outputScroll').innerHTML   = '<span class="out-dim">// load a file to preview output…</span>';
-  ['statPoints','statSkipped','statRows'].forEach(id => {
-    const el = document.getElementById(id);
-    el.textContent = '—'; el.classList.remove('has-data');
-  });
-  document.getElementById('btnSingle').disabled = true;
-  document.getElementById('btnMulti').disabled  = true;
-  document.getElementById('fileInput').value    = '';
-  setStatus('', '');
-}
-
-function spin(id, d) {
-  const el = document.getElementById(id);
-  el.value = Math.max(0, (parseInt(el.value) || 0) + d);
-  if (rawText) parseAndStats();
-}
-
-['headerRows','colX','colY','colZ'].forEach(id =>
-  document.getElementById(id).addEventListener('change', () => { if (rawText) parseAndStats(); })
-);
-document.getElementById('outputFormat').addEventListener('change', renderOutputPreview);
-
-let statusTimer;
-function setStatus(msg, type) {
-  clearTimeout(statusTimer);
-  const el = document.getElementById('statusMsg');
-  el.style.animation = 'none';
-  el.offsetHeight; // reflow
-  el.textContent = msg;
-  el.className = `status-msg ${type}`;
-}
-
-// ── Toast factory ──
-function showToast(icon, iconBg, title, sub, duration=2500) {
-  document.querySelectorAll('.toast').forEach(t=>t.remove());
-  const t = document.createElement('div');
-  t.className='toast';
-  t.innerHTML=`
-    <div class="toast-icon" style="background:${iconBg};font-size:18px">${icon}</div>
-    <div><div class="toast-title">${title}</div><div class="toast-sub">${sub}</div></div>
-  `;
-  document.body.appendChild(t);
-  setTimeout(()=>{
-    t.style.transition='opacity 0.3s, transform 0.3s';
-    t.style.opacity='0'; t.style.transform='translateY(8px)';
-    setTimeout(()=>t.remove(),320);
-  }, duration);
-}
-
-// ══════════════════════════════════════════════
-// EASTER EGG 1 — GPS DRIFT
-// Triple-click the header eyebrow → coordinates
-// on screen start visibly drifting / corrupting
-// ══════════════════════════════════════════════
-let eyebrowClicks = 0, eyebrowTimer;
-document.querySelector('.header-eyebrow').addEventListener('click', () => {
-  eyebrowClicks++;
-  clearTimeout(eyebrowTimer);
-  eyebrowTimer = setTimeout(() => eyebrowClicks = 0, 900);
-  if (eyebrowClicks >= 3) {
-    eyebrowClicks = 0;
-    triggerGpsDrift();
-  }
-});
-
-function triggerGpsDrift() {
-  if (!parsedRows.length) {
-    showToast('📡','var(--accent-bg)','No signal','Load a file first. The GPS needs something to lose.', 2800);
-    return;
-  }
-  showToast('📡','#fdf0ef','GPS signal lost','Multipath error detected. Coordinates drifting…', 3500);
-  const preview = document.getElementById('previewScroll');
-  const output  = document.getElementById('outputScroll');
-  const origPrev = preview.innerHTML;
-  const origOut  = output.innerHTML;
-  let tick = 0;
-  const interval = setInterval(() => {
-    tick++;
-    // Corrupt random numbers in the preview text
-    preview.querySelectorAll('.preview-line').forEach(line => {
-      if (Math.random() < 0.3) {
-        line.style.color = `hsl(${Math.random()*30+0},70%,55%)`;
-        line.style.transform = `translateX(${(Math.random()-0.5)*6}px)`;
-      }
-    });
-    output.querySelectorAll('.out-coord').forEach(el => {
-      if (Math.random() < 0.5) {
-        const orig = el.textContent;
-        const num = parseFloat(orig);
-        if (!isNaN(num)) el.textContent = (num + (Math.random()-0.5)*50).toFixed(3);
-      }
-    });
-    if (tick >= 8) {
-      clearInterval(interval);
-      // Snap back with a shake
-      preview.style.animation = 'none';
-      preview.innerHTML = origPrev;
-      output.innerHTML  = origOut;
-      preview.querySelectorAll('.preview-line').forEach(l => { l.style.color=''; l.style.transform=''; });
-      showToast('✅','var(--green-bg)','Signal reacquired','Coordinates restored. Probably fine.', 2500);
-    }
-  }, 280);
-}
-
-// ══════════════════════════════════════════════
-// EASTER EGG 2 — SITE INCIDENT REPORT
-// Type "oops" anywhere → fake H&S near-miss
-// form slides in from the right
-// ══════════════════════════════════════════════
-let oopsBuffer = '';
-document.addEventListener('keypress', e => {
-  if (document.activeElement.tagName === 'INPUT') return;
-  oopsBuffer += e.key.toLowerCase();
-  if (oopsBuffer.length > 6) oopsBuffer = oopsBuffer.slice(-6);
-  if (oopsBuffer.endsWith('oops')) { oopsBuffer = ''; triggerIncidentReport(); }
-});
-
-function triggerIncidentReport() {
-  const existing = document.getElementById('incidentOverlay');
-  if (existing) { existing.remove(); return; }
-  const d = new Date();
-  const dateStr = d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase();
-  const ref = 'NM-' + Math.floor(1000+Math.random()*9000);
-  const overlay = document.createElement('div');
-  overlay.id = 'incidentOverlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(26,23,20,0.7);backdrop-filter:blur(4px);animation:fadeIn 0.25s ease both;cursor:pointer;';
-  overlay.innerHTML = `
-    <div onclick="event.stopPropagation()" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 36px;max-width:460px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.2);animation:slideUp 0.4s var(--ease-spring) both;cursor:default;position:relative;">
-      <div style="font-family:'Martian Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--red);text-transform:uppercase;margin-bottom:4px;">⚠ Near-Miss Report · ${ref}</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--text);margin-bottom:20px;line-height:1.2;">Site Incident<br><em style="color:var(--accent)">Notification</em></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
-          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Date</div>
-          <div style="font-size:12px;font-weight:600;color:var(--text)">${dateStr}</div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
-          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Location</div>
-          <div style="font-size:12px;font-weight:600;color:var(--text)">Converter · Screen</div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
-          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Category</div>
-          <div style="font-size:12px;font-weight:600;color:var(--red)">Coordinate Error</div>
-        </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;">
-          <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:3px;">Severity</div>
-          <div style="font-size:12px;font-weight:600;color:var(--amber)">Medium</div>
-        </div>
-      </div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;">
-        <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">Description of Event</div>
-        <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">Operative typed "oops" into the coordinate converter. Immediate near-miss flagged. No coordinates were harmed. The SCR script has been placed in a safe location pending investigation. A toolbox talk has been scheduled.</div>
-      </div>
-      <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:0.08em;display:flex;justify-content:space-between;align-items:center;">
-        <span>Reported by: D. Rose · Site Engineer</span>
-        <span style="color:var(--accent);cursor:pointer;" onclick="document.getElementById('incidentOverlay').remove()">[ dismiss ]</span>
-      </div>
-    </div>
-  `;
-  overlay.addEventListener('click', () => overlay.remove());
-  document.body.appendChild(overlay);
-}
-
-// ══════════════════════════════════════════════
-// EASTER EGG 3 — WRONG COORDINATE SYSTEM
-// After exporting a file, wait 4 seconds then
-// show a "critical" alert that the coordinate
-// system might be completely wrong
-// ══════════════════════════════════════════════
-let exportCount = 0;
-function maybeWrongCRS() {
-  exportCount++;
-  if (exportCount !== 3) return; // fires on 3rd export
-  exportCount = 0;
-  setTimeout(() => {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(192,57,43,0.15);backdrop-filter:blur(2px);animation:fadeIn 0.3s ease both;cursor:pointer;';
-    overlay.innerHTML = `
-      <div onclick="event.stopPropagation()" style="background:var(--surface);border:2px solid var(--red);border-radius:16px;padding:32px 36px;max-width:420px;width:90%;box-shadow:0 0 0 6px rgba(192,57,43,0.08),0 24px 60px rgba(0,0,0,0.2);animation:scaleIn 0.4s var(--ease-spring) both;cursor:default;text-align:center;">
-        <div style="font-size:36px;margin-bottom:12px;">🌍</div>
-        <div style="font-family:'Martian Mono',monospace;font-size:9px;letter-spacing:0.2em;color:var(--red);text-transform:uppercase;margin-bottom:8px;">Critical Warning</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:24px;color:var(--text);margin-bottom:14px;line-height:1.3;">Are you in the right<br><em style="color:var(--red)">coordinate system?</em></div>
-        <div style="font-family:'Martian Mono',monospace;font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:20px;">Your file has been exported.<br>But is it OSGB36? BNG? WGS84?<br>ITM? Local grid? Site datum?<br><br>Nobody knows. Least of all AutoCAD.</div>
-        <div style="display:flex;gap:10px;justify-content:center;">
-          <button onclick="document.querySelector('[data-crs-overlay]').remove()" style="font-family:'Martian Mono',monospace;font-size:10px;padding:8px 16px;border-radius:100px;border:1px solid var(--green);background:var(--green-bg);color:var(--green);cursor:pointer;letter-spacing:0.08em;" onclick="this.closest('[style]').parentElement.remove()">Yes, I checked ✓</button>
-          <button style="font-family:'Martian Mono',monospace;font-size:10px;padding:8px 16px;border-radius:100px;border:1px solid var(--red);background:var(--red-bg,#fdf0ef);color:var(--red);cursor:pointer;letter-spacing:0.08em;" onclick="this.closest('div').closest('div').parentElement.remove()">I have not checked</button>
-        </div>
-        <div style="font-family:'Martian Mono',monospace;font-size:9px;color:var(--text3);margin-top:16px;letter-spacing:0.06em;">[ click anywhere to dismiss and panic quietly ]</div>
-      </div>
-    `;
-    overlay.addEventListener('click', ()=>overlay.remove());
-    document.body.appendChild(overlay);
-  }, 1800);
-}
-
-// maybeWrongCRS() called directly from doConvert on export
-
-function parseCSV(line) {
-  const out = []; let cur = '', inQ = false;
-  for (let c of line) {
-    if (c === '"') { inQ = !inQ; continue; }
-    if (c === ',' && !inQ) { out.push(cur.trim()); cur = ''; continue; }
-    cur += c;
-  }
-  out.push(cur.trim()); return out;
-}
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-</script>
+<script src="common.js"></script>
+<script src="converter.js"></script>
 </body>
 </html>
-
